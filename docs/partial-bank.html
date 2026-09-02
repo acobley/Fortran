@@ -1,0 +1,306 @@
+<title>Inside the Partial Bank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* Same token set as the signal path page - these are companion pieces. */
+  :root {
+    --ground:      #eaf4f8;
+    --surface:     #ffffff;
+    --surface-sunk:#dfeef4;
+    --ink:         #0b1526;
+    --ink-soft:    #40566b;
+    --ink-faint:   #7791a3;
+    --rule:        #bcd6e1;
+    --rule-strong: #7fa6b7;
+    --accent:      #0a7ea4;
+    --accent-quiet:#cfe9f2;
+    --phase:       #5a4ec9;
+    --amp:         #b06a00;
+    --warn:        #a3341f;
+    --shadow:      0 1px 2px rgba(11,21,38,.07), 0 8px 24px rgba(11,21,38,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #08131b;
+      --surface:     #0e1e28;
+      --surface-sunk:#0a1821;
+      --ink:         #e3f1f7;
+      --ink-soft:    #9db8c6;
+      --ink-faint:   #5f7d8c;
+      --rule:        #1e3746;
+      --rule-strong: #385c70;
+      --accent:      #3fc9f2;
+      --accent-quiet:#123444;
+      --phase:       #b9afff;
+      --amp:         #ffcd78;
+      --warn:        #ff9478;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #08131b;
+    --surface:     #0e1e28;
+    --surface-sunk:#0a1821;
+    --ink:         #e3f1f7;
+    --ink-soft:    #9db8c6;
+    --ink-faint:   #5f7d8c;
+    --rule:        #1e3746;
+    --rule-strong: #385c70;
+    --accent:      #3fc9f2;
+    --accent-quiet:#123444;
+    --phase:       #b9afff;
+    --amp:         #ffcd78;
+    --warn:        #ff9478;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground); color: var(--ink);
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 17px; line-height: 1.62; margin: 0; padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 78ch; margin: 0 auto; }
+
+  header { padding: 56px 0 34px; border-bottom: 1px solid var(--rule); }
+  .eyebrow {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: clamp(32px, 5.4vw, 48px); font-weight: 700; letter-spacing: -.022em;
+    line-height: 1.05; margin: 0 0 18px; text-wrap: balance;
+  }
+  .standfirst { font-size: 20px; color: var(--ink-soft); margin: 0; max-width: 58ch; }
+
+  h2 {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 25px; font-weight: 600; letter-spacing: -.014em;
+    margin: 56px 0 6px; text-wrap: balance;
+  }
+  h2 + p.lede { color: var(--ink-soft); margin: 0 0 24px; max-width: 62ch; }
+  p { margin: 0 0 18px; max-width: 66ch; }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: .88em;
+  }
+  code {
+    background: var(--surface-sunk); border: 1px solid var(--rule);
+    padding: .08em .34em; border-radius: 3px;
+  }
+
+  figure {
+    margin: 30px 0 34px;
+    width: min(1100px, calc(100vw - 40px));
+    margin-left: 50%; transform: translateX(-50%);
+  }
+  .scroller {
+    overflow-x: auto; background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 6px;
+    box-shadow: var(--shadow); padding: 22px 20px;
+  }
+  .scroller svg { display: block; max-width: 100%; height: auto; min-width: 780px; color: var(--ink); }
+  figcaption {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 13.5px; color: var(--ink-soft); margin-top: 12px; line-height: 1.5;
+    max-width: 66ch;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  .t-block { font-family: "Instrument Sans", system-ui, sans-serif; font-size: 12.5px; font-weight: 600; fill: currentColor; }
+  .t-sub   { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--ink-soft); }
+  .t-edge  { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--ink-faint); }
+  .t-head  { font-family: "Instrument Sans", system-ui, sans-serif; font-size: 11.5px; font-weight: 700; letter-spacing: .1em; }
+
+  .box      { fill: var(--surface); stroke: var(--rule-strong); stroke-width: 1.2; }
+  .box-tab  { fill: var(--accent-quiet); stroke: var(--accent); stroke-width: 1.4; }
+  .flow     { stroke: var(--rule-strong); stroke-width: 1.6; fill: none; }
+  .flow-p   { stroke: var(--phase); stroke-width: 1.5; fill: none; }
+  .flow-a   { stroke: var(--amp); stroke-width: 1.5; fill: none; }
+
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 26px; font-size: 15.5px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); }
+  th {
+    font-family: "Instrument Sans", system-ui, sans-serif; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: .09em; color: var(--ink-faint); font-weight: 600;
+  }
+  td.num {
+    font-family: "IBM Plex Mono", monospace; font-size: 13.5px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  tr.off td { color: var(--warn); }
+  tr.off td.num { font-weight: 500; }
+
+  .differs { list-style: none; margin: 0 0 26px; padding: 0; }
+  .differs li {
+    display: grid; grid-template-columns: 190px 1fr; gap: 18px;
+    padding: 13px 0; border-bottom: 1px solid var(--rule);
+  }
+  .differs .what {
+    font-family: "Instrument Sans", system-ui, sans-serif; font-weight: 600;
+    font-size: 14px; line-height: 1.35;
+  }
+  .differs .what span { display: block; font-weight: 400; color: var(--ink-faint); font-size: 12.5px; margin-top: 3px; }
+  .differs p { margin: 0; font-size: 15.5px; }
+  @media (max-width: 620px) { .differs li { grid-template-columns: 1fr; gap: 6px; } }
+
+  footer {
+    margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--rule);
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 13px; color: var(--ink-faint);
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">ForTran &middot; stage 2 in detail</p>
+  <h1>Inside the partial bank</h1>
+  <p class="standfirst">One sine, two branches: what decides where it is in its cycle, and what decides how loud. Then ten of them, differing only in a number.</p>
+</header>
+
+<h2>One partial</h2>
+<p class="lede">All ten are this, with <span class="mono">k</span> running 1 to 10.</p>
+
+<figure>
+  <div class="scroller">
+    <svg viewBox="0 0 880 530" role="img" aria-label="One partial of the ForTran bank. A phase branch multiplies the accumulator by the harmonic number and adds the filter table's phase and the harmonic's own phase control before taking a sine. An amplitude branch multiplies the harmonic level, the filter table's magnitude, the formant envelope and the harmonic LFO. The two branches meet at a single multiply, whose result is one of the ten summed together.">
+      <defs>
+        <marker id="p1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+        </marker>
+        <marker id="pp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--phase)"></path>
+        </marker>
+        <marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--amp)"></path>
+        </marker>
+      </defs>
+
+      <!-- ---------- the shared table lookup ---------- -->
+      <rect class="box-tab" x="330" y="18" width="220" height="76" rx="4"></rect>
+      <text class="t-block" x="440" y="40" text-anchor="middle">552-bin filter table</text>
+      <text class="t-sub"   x="440" y="58" text-anchor="middle">read at bin + offset&#8342;</text>
+      <text class="t-sub"   x="440" y="74" text-anchor="middle">lerped between two bins</text>
+      <text class="t-sub"   x="440" y="90" text-anchor="middle">shortest way round in phase</text>
+
+      <!-- out to the phase column -->
+      <path class="flow-p" d="M 330 56 L 250 56 L 250 178" marker-end="url(#pp)"></path>
+      <text class="t-edge" x="196" y="50">&phi;&#8342;</text>
+      <!-- out to the amplitude column -->
+      <path class="flow-a" d="M 550 56 L 630 56 L 630 178" marker-end="url(#pa)"></path>
+      <text class="t-edge" x="638" y="50">mag&#8342;</text>
+
+      <!-- ---------- column headings ---------- -->
+      <text class="t-head" x="180" y="128" text-anchor="middle" fill="var(--phase)">WHERE IN THE CYCLE</text>
+      <text class="t-head" x="700" y="128" text-anchor="middle" fill="var(--amp)">HOW LOUD</text>
+
+      <!-- ---------- phase branch ---------- -->
+      <rect class="box" x="60" y="144" width="240" height="34" rx="4"></rect>
+      <text class="t-block" x="180" y="166" text-anchor="middle">k &times; &theta;</text>
+      <line class="flow-p" x1="180" y1="178" x2="180" y2="194" marker-end="url(#pp)"></line>
+
+      <rect class="box" x="60" y="198" width="240" height="34" rx="4"></rect>
+      <text class="t-block" x="180" y="220" text-anchor="middle">+ &phi;&#8342; from the table</text>
+      <line class="flow-p" x1="180" y1="232" x2="180" y2="248" marker-end="url(#pp)"></line>
+
+      <rect class="box" x="60" y="252" width="240" height="46" rx="4"></rect>
+      <text class="t-block" x="180" y="272" text-anchor="middle">+ phase control</text>
+      <text class="t-sub"   x="180" y="288" text-anchor="middle">&minus;90&deg; &hellip; +90&deg;</text>
+      <line class="flow-p" x1="180" y1="298" x2="180" y2="330" marker-end="url(#pp)"></line>
+
+      <rect class="box" x="100" y="334" width="160" height="40" rx="4"></rect>
+      <text class="t-block" x="180" y="359" text-anchor="middle">sin( )</text>
+
+      <!-- ---------- amplitude branch ---------- -->
+      <rect class="box" x="580" y="144" width="240" height="34" rx="4"></rect>
+      <text class="t-block" x="700" y="166" text-anchor="middle">level&#8342;, negated if Inv</text>
+      <line class="flow-a" x1="700" y1="178" x2="700" y2="194" marker-end="url(#pa)"></line>
+
+      <rect class="box" x="580" y="198" width="240" height="34" rx="4"></rect>
+      <text class="t-block" x="700" y="220" text-anchor="middle">&times; mag&#8342; from the table</text>
+      <line class="flow-a" x1="700" y1="232" x2="700" y2="248" marker-end="url(#pa)"></line>
+
+      <rect class="box" x="580" y="252" width="240" height="46" rx="4"></rect>
+      <text class="t-block" x="700" y="272" text-anchor="middle">&times; formant envelope k</text>
+      <text class="t-sub"   x="700" y="288" text-anchor="middle">its own ADSR, level, invert</text>
+      <line class="flow-a" x1="700" y1="298" x2="700" y2="314" marker-end="url(#pa)"></line>
+
+      <rect class="box" x="580" y="318" width="240" height="46" rx="4"></rect>
+      <text class="t-block" x="700" y="338" text-anchor="middle">&times; harmonic LFO k</text>
+      <text class="t-sub"   x="700" y="354" text-anchor="middle">1 + depth &middot; sin, 0 = off</text>
+
+      <!-- ---------- they meet ---------- -->
+      <path class="flow-p" d="M 180 374 L 180 424 L 412 424" marker-end="url(#pp)"></path>
+      <path class="flow-a" d="M 700 364 L 700 424 L 468 424" marker-end="url(#pa)"></path>
+
+      <circle class="box-tab" cx="440" cy="424" r="24"></circle>
+      <text class="t-block" x="440" y="430" text-anchor="middle">&times;</text>
+
+      <line class="flow" x1="440" y1="448" x2="440" y2="472" marker-end="url(#p1)"></line>
+      <rect class="box" x="330" y="476" width="220" height="40" rx="4"></rect>
+      <text class="t-block" x="440" y="493" text-anchor="middle">one of ten, summed</text>
+      <text class="t-sub"   x="440" y="509" text-anchor="middle">&Sigma; &rarr; the amplitude envelope</text>
+    </svg>
+  </div>
+  <figcaption><b>One partial.</b> The two branches are independent right up to the last multiply: nothing on the left can make a partial louder, and nothing on the right can move it in its cycle. The filter table feeds both &mdash; a magnitude to one and a phase to the other &mdash; which is why engaging a filter shape changes the timbre <i>and</i> the waveform's shape on the scope.</figcaption>
+</figure>
+
+<h2>What actually differs between the ten</h2>
+<p class="lede">Structurally they are identical. Four things carry the index.</p>
+
+<ul class="differs">
+  <li>
+    <div class="what">The harmonic number<span>k &times; &theta;</span></div>
+    <p>The only part that is not a control. Partial <span class="mono">k</span> runs at <span class="mono">k</span> times the note's frequency &mdash; so the tenth is at 4.4&nbsp;kHz for a note at A4, which is what puts it in reach of the output ladder's corner.</p>
+  </li>
+  <li>
+    <div class="what">Where it reads the table<span>bin + offset&#8342;</span></div>
+    <p>Each partial reads the filter's response at its own frequency, as an offset on the quarter-semitone grid. Those offsets are <b>rounded to whole semitones</b> &mdash; see below.</p>
+  </li>
+  <li>
+    <div class="what">Its own five controls<span>level, phase, invert</span></div>
+    <p>Plus a whole ADSR with its own level, enable and invert, and an LFO with its own rate and depth. That is 12 parameters per partial, 120 of the plug-in's 145.</p>
+  </li>
+  <li>
+    <div class="what">Nothing else<span>the code is one loop</span></div>
+    <p>There is no per-partial special case anywhere. The DXi wrote the loop out ten times by hand, which is why the port could fold it back into one.</p>
+  </li>
+</ul>
+
+<h2>The offsets are rounded, and it is audible</h2>
+<p class="lede">Harmonic <span class="mono">n</span> sits <span class="mono">12&middot;log&#8322;(n)</span> semitones above the fundamental. The DXi rounds that to a whole semitone before multiplying by four for the quarter-semitone grid.</p>
+
+<table>
+  <thead>
+    <tr><th>Harmonic</th><th>Offset</th><th>True interval</th><th>Read as</th><th>Error</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="num">1</td><td class="num">0</td><td class="num">0.00 st</td><td class="num">0</td><td class="num">&mdash;</td></tr>
+    <tr><td class="num">2</td><td class="num">48</td><td class="num">12.00 st</td><td class="num">12</td><td class="num">&mdash;</td></tr>
+    <tr><td class="num">3</td><td class="num">76</td><td class="num">19.02 st</td><td class="num">19</td><td class="num">&minus;2 &cent;</td></tr>
+    <tr><td class="num">4</td><td class="num">96</td><td class="num">24.00 st</td><td class="num">24</td><td class="num">&mdash;</td></tr>
+    <tr class="off"><td class="num">5</td><td class="num">112</td><td class="num">27.86 st</td><td class="num">28</td><td class="num">+14 &cent;</td></tr>
+    <tr><td class="num">6</td><td class="num">124</td><td class="num">31.02 st</td><td class="num">31</td><td class="num">&minus;2 &cent;</td></tr>
+    <tr class="off"><td class="num">7</td><td class="num">136</td><td class="num">33.69 st</td><td class="num">34</td><td class="num">+31 &cent;</td></tr>
+    <tr><td class="num">8</td><td class="num">144</td><td class="num">36.00 st</td><td class="num">36</td><td class="num">&mdash;</td></tr>
+    <tr><td class="num">9</td><td class="num">152</td><td class="num">38.04 st</td><td class="num">38</td><td class="num">&minus;4 &cent;</td></tr>
+    <tr class="off"><td class="num">10</td><td class="num">160</td><td class="num">39.86 st</td><td class="num">40</td><td class="num">+14 &cent;</td></tr>
+  </tbody>
+</table>
+
+<p><b>The seventh is read almost a third of a semitone sharp.</b> It still <i>sounds</i> at exactly seven times the fundamental &mdash; the offset only chooses where in the filter's response its magnitude and phase come from. So a filter shape with any slope treats the seventh as if it were slightly higher than it is, and the fifth and tenth as slightly higher too. Everything else lands within four cents.</p>
+
+<p>It is verbatim from the DXi's <span class="mono">Values[]</span>, and the rounding is kept: it is part of the sound, and correcting it would change the timbre of every patch that engages a filter.</p>
+
+<footer>
+  Drawn from <span class="mono">Voice::renderSample</span> and <span class="mono">FilterInfo::combine</span> in the VST3 port. Companion to the whole-voice signal path; this is stage 2 of that drawing, opened up.
+</footer>
+
+</div>

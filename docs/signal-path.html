@@ -1,0 +1,443 @@
+<title>ForTran Signal Path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ---- tokens: light is the base, both dark states redefine only these ---- */
+  :root {
+    --ground:      #eaf4f8;   /* the panel's pale cyan, desaturated to a paper */
+    --surface:     #ffffff;
+    --surface-sunk:#dfeef4;
+    --ink:         #0b1526;   /* near the artwork's navy, #070747, opened up */
+    --ink-soft:    #40566b;
+    --ink-faint:   #7791a3;
+    --rule:        #bcd6e1;
+    --rule-strong: #7fa6b7;
+    --accent:      #0a7ea4;   /* the panel cyan, taken down to hold on white */
+    --accent-quiet:#cfe9f2;
+    --amp:         #b06a00;   /* the three editor traces, darkened for paper */
+    --filter:      #1a7f4b;
+    --harm:        #5a4ec9;
+    --warn:        #a3341f;
+    --shadow:      0 1px 2px rgba(11,21,38,.07), 0 8px 24px rgba(11,21,38,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #08131b;
+      --surface:     #0e1e28;
+      --surface-sunk:#0a1821;
+      --ink:         #e3f1f7;
+      --ink-soft:    #9db8c6;
+      --ink-faint:   #5f7d8c;
+      --rule:        #1e3746;
+      --rule-strong: #385c70;
+      --accent:      #3fc9f2;
+      --accent-quiet:#123444;
+      --amp:         #ffcd78;
+      --filter:      #8cebaa;
+      --harm:        #b9afff;
+      --warn:        #ff9478;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #08131b;
+    --surface:     #0e1e28;
+    --surface-sunk:#0a1821;
+    --ink:         #e3f1f7;
+    --ink-soft:    #9db8c6;
+    --ink-faint:   #5f7d8c;
+    --rule:        #1e3746;
+    --rule-strong: #385c70;
+    --accent:      #3fc9f2;
+    --accent-quiet:#123444;
+    --amp:         #ffcd78;
+    --filter:      #8cebaa;
+    --harm:        #b9afff;
+    --warn:        #ff9478;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 78ch; margin: 0 auto; }
+  .prose { max-width: 66ch; }
+
+  /* ---- masthead ---- */
+  header { padding: 56px 0 34px; border-bottom: 1px solid var(--rule); }
+  .eyebrow {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: clamp(34px, 6vw, 52px); font-weight: 700; letter-spacing: -.022em;
+    line-height: 1.04; margin: 0 0 18px; text-wrap: balance;
+  }
+  .standfirst { font-size: 20px; color: var(--ink-soft); margin: 0; max-width: 58ch; }
+
+  h2 {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 26px; font-weight: 600; letter-spacing: -.014em;
+    margin: 60px 0 6px; text-wrap: balance;
+  }
+  h2 + p.lede { color: var(--ink-soft); margin: 0 0 26px; }
+  p { margin: 0 0 18px; }
+  a { color: var(--accent); }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: .88em;
+  }
+  code {
+    background: var(--surface-sunk); border: 1px solid var(--rule);
+    padding: .08em .34em; border-radius: 3px;
+  }
+
+  /* ---- figures ----
+     They break out past the reading column: these drawings are the page,
+     and squeezing 900 units into 66ch takes the labels below legible. */
+  figure {
+    margin: 30px 0 34px;
+    width: min(1100px, calc(100vw - 40px));
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+  .scroller {
+    overflow-x: auto; background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 6px;
+    box-shadow: var(--shadow); padding: 22px 20px;
+  }
+  .scroller svg { display: block; max-width: 100%; height: auto; min-width: 780px; color: var(--ink); }
+  figcaption {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 13.5px; color: var(--ink-soft); margin-top: 12px; line-height: 1.5;
+    max-width: 66ch;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* svg type roles */
+  .t-block  { font-family: "Instrument Sans", system-ui, sans-serif; font-size: 13px; font-weight: 600; fill: currentColor; }
+  .t-sub    { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: var(--ink-soft); }
+  .t-edge   { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--ink-faint); }
+  .t-side   { font-family: "Instrument Sans", system-ui, sans-serif; font-size: 11.5px; font-weight: 500; fill: var(--ink-soft); }
+  .t-stage  { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: var(--accent); }
+
+  .box  { fill: var(--surface); stroke: var(--rule-strong); stroke-width: 1.2; }
+  .box-key { fill: var(--accent-quiet); stroke: var(--accent); stroke-width: 1.4; }
+  .flow { stroke: var(--rule-strong); stroke-width: 1.6; fill: none; }
+  .flow-side { stroke: var(--rule); stroke-width: 1.2; fill: none; }
+  .flow-fb { stroke: var(--warn); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+
+  /* ---- key/table ---- */
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 26px; font-size: 15.5px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+  th {
+    font-family: "Instrument Sans", system-ui, sans-serif; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: .09em; color: var(--ink-faint); font-weight: 600;
+  }
+  td.num { font-variant-numeric: tabular-nums; font-family: "IBM Plex Mono", monospace; font-size: 13.5px; white-space: nowrap; }
+  td.stage { font-family: "IBM Plex Mono", monospace; color: var(--accent); font-size: 13px; white-space: nowrap; }
+
+  /* ---- oddity notes ---- */
+  .oddities { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .oddities li {
+    display: grid; grid-template-columns: 150px 1fr; gap: 18px;
+    padding: 14px 0; border-bottom: 1px solid var(--rule);
+  }
+  /* The body is one grid child, whatever it contains. Two paragraphs and a
+     table as siblings would wrap onto a second row of the grid and land
+     under the label instead of beside it. */
+  .oddities .body > * + * { margin-top: 10px; }
+  .oddities .body p { margin: 0; }
+  /* A small figures table, not the page's full-width one. */
+  table.mini { width: auto; margin: 0; font-size: 14px; }
+  table.mini td { border-bottom: none; padding: 2px 18px 2px 0; }
+  table.mini td:first-child,
+  table.mini td:nth-child(2) {
+    font-family: "IBM Plex Mono", monospace; font-size: 13px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  table.mini td:nth-child(2) { color: var(--accent); text-align: right; }
+  table.mini td:last-child { color: var(--ink-soft); }
+  .oddities .what {
+    font-family: "Instrument Sans", system-ui, sans-serif; font-weight: 600;
+    font-size: 14px; color: var(--ink); line-height: 1.35;
+  }
+  .oddities .what span { display: block; font-weight: 400; color: var(--ink-faint); font-size: 12.5px; margin-top: 3px; }
+  .oddities p { margin: 0; font-size: 15.5px; }
+  @media (max-width: 620px) {
+    .oddities li { grid-template-columns: 1fr; gap: 6px; }
+  }
+
+  footer {
+    margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--rule);
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 13px; color: var(--ink-faint);
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">ForTran &middot; additive synthesiser &middot; DXi 2003 &rarr; VST3</p>
+  <h1>What one voice does to one sample</h1>
+  <p class="standfirst">Ten sine partials, twelve envelopes, a 552-bin spectral lookup and a ladder that mostly isn't one &mdash; in the order they actually happen.</p>
+</header>
+
+<h2>The voice</h2>
+<p class="lede">Everything below runs once per sample, per sounding note.</p>
+
+<figure>
+  <div class="scroller">
+    <svg viewBox="0 0 900 872" role="img" aria-label="Signal path of one ForTran voice: a phase accumulator drives ten sine partials, which are scaled by harmonic levels, formant envelopes and a spectral filter lookup, summed, then multiplied by the amplitude envelope, tremolo and voice gain, passed through a four-pole ladder filter with feedback and a gain of five, and panned to left and right.">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+        </marker>
+        <marker id="aw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--warn)"></path>
+        </marker>
+      </defs>
+
+      <!-- ============ side sources, left ============ -->
+      <text class="t-side" x="300" y="52"  text-anchor="end">note number &rarr; step</text>
+      <text class="t-side" x="300" y="70"  text-anchor="end">pitch wheel &middot; vibrato LFO</text>
+      <line class="flow-side" x1="308" y1="62" x2="326" y2="62" marker-end="url(#a)"></line>
+
+      <text class="t-side" x="300" y="200" text-anchor="end">harmonic level &times;10</text>
+      <text class="t-side" x="300" y="218" text-anchor="end">harmonic phase &times;10</text>
+      <text class="t-side" x="300" y="236" text-anchor="end">formant ADSR &times;10</text>
+      <text class="t-side" x="300" y="254" text-anchor="end">harmonic LFO &times;10</text>
+      <line class="flow-side" x1="308" y1="227" x2="326" y2="227" marker-end="url(#a)"></line>
+
+      <text class="t-side" x="300" y="431" text-anchor="end">amplitude ADSR</text>
+      <line class="flow-side" x1="308" y1="426" x2="326" y2="426" marker-end="url(#a)"></line>
+
+      <text class="t-side" x="300" y="507" text-anchor="end">tremolo LFO</text>
+      <line class="flow-side" x1="308" y1="502" x2="326" y2="502" marker-end="url(#a)"></line>
+
+      <text class="t-side" x="300" y="583" text-anchor="end">velocity &middot; CC7</text>
+      <line class="flow-side" x1="308" y1="578" x2="326" y2="578" marker-end="url(#a)"></line>
+
+      <text class="t-side" x="300" y="645" text-anchor="end">Ladder switch</text>
+      <line class="flow-side" x1="308" y1="640" x2="326" y2="640" marker-end="url(#a)"></line>
+
+      <text class="t-side" x="300" y="787" text-anchor="end">CC10 + Pan knob</text>
+      <text class="t-side" x="300" y="803" text-anchor="end">the knob offsets it</text>
+      <line class="flow-side" x1="308" y1="790" x2="326" y2="790" marker-end="url(#a)"></line>
+
+      <!-- ============ spine ============ -->
+      <!-- 1 phase -->
+      <rect class="box" x="330" y="38" width="240" height="48" rx="4"></rect>
+      <text class="t-stage" x="338" y="34">1</text>
+      <text class="t-block" x="450" y="60" text-anchor="middle">Phase accumulator</text>
+      <text class="t-sub"   x="450" y="76" text-anchor="middle">&theta; += step &times; bend + vibrato</text>
+      <line class="flow" x1="450" y1="86" x2="450" y2="146" marker-end="url(#a)"></line>
+      <text class="t-edge" x="458" y="112">&theta;</text>
+
+      <!-- 2 harmonic bank -->
+      <rect class="box-key" x="330" y="150" width="240" height="158" rx="4"></rect>
+      <text class="t-stage" x="338" y="146">2</text>
+      <text class="t-block" x="450" y="174" text-anchor="middle">Ten sine partials</text>
+      <text class="t-sub" x="346" y="200">k = 1</text>
+      <text class="t-sub" x="346" y="218">k = 2</text>
+      <text class="t-sub" x="346" y="236">&hellip;</text>
+      <text class="t-sub" x="346" y="254">k = 10</text>
+      <text class="t-sub" x="450" y="284" text-anchor="middle">sin(k&theta; + &phi;) &times; level</text>
+      <text class="t-sub" x="450" y="300" text-anchor="middle">&times; magnitude &times; formant env</text>
+      <line class="flow" x1="450" y1="308" x2="450" y2="358" marker-end="url(#a)"></line>
+      <text class="t-edge" x="458" y="336">&Sigma;</text>
+
+      <!-- 3 amp env -->
+      <rect class="box" x="330" y="362" width="240" height="42" rx="4"></rect>
+      <text class="t-stage" x="338" y="358">3</text>
+      <text class="t-block" x="450" y="388" text-anchor="middle">&times; amplitude envelope</text>
+      <line class="flow" x1="450" y1="404" x2="450" y2="434" marker-end="url(#a)"></line>
+
+      <!-- 4 tremolo -->
+      <rect class="box" x="330" y="438" width="240" height="42" rx="4"></rect>
+      <text class="t-stage" x="338" y="434">4</text>
+      <text class="t-block" x="450" y="464" text-anchor="middle">&times; (1 + tremolo)</text>
+      <line class="flow" x1="450" y1="480" x2="450" y2="510" marker-end="url(#a)"></line>
+
+      <!-- 5 voice gain -->
+      <rect class="box" x="330" y="514" width="240" height="52" rx="4"></rect>
+      <text class="t-stage" x="338" y="510">5</text>
+      <text class="t-block" x="450" y="535" text-anchor="middle">&times; voice gain</text>
+      <text class="t-sub"   x="450" y="553" text-anchor="middle">&radic;(cc7&middot;vel / 127&sup2;) &times; 0.25</text>
+      <line class="flow" x1="450" y1="566" x2="450" y2="606" marker-end="url(#a)"></line>
+
+      <!-- 6 ladder -->
+      <rect class="box" x="330" y="610" width="240" height="76" rx="4"></rect>
+      <text class="t-stage" x="338" y="606">6</text>
+      <text class="t-block" x="450" y="632" text-anchor="middle">Ladder, 4 poles &mdash; switchable</text>
+      <text class="t-sub"   x="450" y="650" text-anchor="middle">f = 0.58 fixed, corner 0.198 &times; Nyq</text>
+      <text class="t-sub"   x="450" y="672" text-anchor="middle">+10.6 dB, then &times; 5</text>
+      <!-- feedback loop -->
+      <path class="flow-fb" d="M 570 674 L 606 674 L 606 622 L 574 622" marker-end="url(#aw)"></path>
+      <text class="t-edge" x="612" y="652">fb 0.47</text>
+      <line class="flow" x1="450" y1="686" x2="450" y2="726" marker-end="url(#a)"></line>
+
+      <!-- 7 pan -->
+      <rect class="box" x="330" y="730" width="240" height="52" rx="4"></rect>
+      <text class="t-stage" x="338" y="726">7</text>
+      <text class="t-block" x="450" y="751" text-anchor="middle">Pan &rarr; L / R</text>
+      <text class="t-sub"   x="450" y="769" text-anchor="middle">constant power, unity at the ends</text>
+      <line class="flow" x1="450" y1="782" x2="450" y2="820" marker-end="url(#a)"></line>
+      <text class="t-block" x="450" y="840" text-anchor="middle">to the voice mix</text>
+
+      <!-- ============ filter column, right ============ -->
+      <text class="t-stage" x="628" y="146">A</text>
+      <rect class="box" x="620" y="150" width="256" height="42" rx="4"></rect>
+      <text class="t-block" x="748" y="176" text-anchor="middle">Filter envelope</text>
+      <line class="flow-side" x1="748" y1="192" x2="748" y2="216" marker-end="url(#a)"></line>
+
+      <text class="t-stage" x="628" y="216">B</text>
+      <rect class="box" x="620" y="220" width="256" height="46" rx="4"></rect>
+      <text class="t-block" x="748" y="241" text-anchor="middle">Sweep the bin</text>
+      <text class="t-sub"   x="748" y="257" text-anchor="middle">bin = 276 &minus; 276 &times; env</text>
+      <line class="flow-side" x1="748" y1="266" x2="748" y2="290" marker-end="url(#a)"></line>
+
+      <text class="t-stage" x="628" y="290">C</text>
+      <rect class="box" x="620" y="294" width="256" height="62" rx="4"></rect>
+      <text class="t-block" x="748" y="315" text-anchor="middle">552-bin table</text>
+      <text class="t-sub"   x="748" y="331" text-anchor="middle">LP &middot; HP &middot; comb &middot; grass</text>
+      <text class="t-sub"   x="748" y="347" text-anchor="middle">off / add / mult / max</text>
+
+      <!-- table feeds the bank -->
+      <path class="flow-side" d="M 620 325 L 596 325 L 596 227 L 576 227" marker-end="url(#a)"></path>
+      <text class="t-edge" x="602" y="278">mag, &phi;</text>
+    </svg>
+  </div>
+  <figcaption><b>One voice, one sample.</b> The left column is what a note latches at note-on; the right column is the spectral filter, which is a lookup rather than a time-domain filter &mdash; the envelope sweeps a <i>bin</i>, and each of the ten partials reads its own magnitude and phase from the table. &phi; at stage&nbsp;2 is that partial's own phase control plus whatever phase the table hands it. The ladder at stage&nbsp;6 is the only conventional filter here, and the only thing you can do to it is take it out &mdash; which, below about B4, changes nothing.</figcaption>
+</figure>
+
+<h2>From sixteen voices to the bus</h2>
+<p class="lede">Everything above happens sixteen times over, then once more for the mix.</p>
+
+<figure>
+  <div class="scroller">
+    <svg viewBox="0 0 900 250" role="img" aria-label="Sixteen voices are summed into a stereo mix, tapped for the editor's oscilloscope, passed through a smoothed output trim defaulting to minus twenty decibels, and written to the stereo bus.">
+      <defs>
+        <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+        </marker>
+      </defs>
+
+      <rect class="box" x="20" y="30" width="150" height="32" rx="4"></rect>
+      <text class="t-block" x="95" y="51" text-anchor="middle">voice 1</text>
+      <rect class="box" x="20" y="70" width="150" height="32" rx="4"></rect>
+      <text class="t-block" x="95" y="91" text-anchor="middle">voice 2</text>
+      <text class="t-sub" x="95" y="122" text-anchor="middle">&hellip;</text>
+      <rect class="box" x="20" y="132" width="150" height="32" rx="4"></rect>
+      <text class="t-block" x="95" y="153" text-anchor="middle">voice 16</text>
+
+      <path class="flow" d="M 170 46 L 200 46 L 200 97"></path>
+      <path class="flow" d="M 170 86 L 200 86"></path>
+      <path class="flow" d="M 170 148 L 200 148 L 200 97"></path>
+      <line class="flow" x1="200" y1="97" x2="252" y2="97" marker-end="url(#b)"></line>
+
+      <circle class="box-key" cx="278" cy="97" r="24"></circle>
+      <text class="t-block" x="278" y="103" text-anchor="middle">&Sigma;</text>
+      <line class="flow" x1="302" y1="97" x2="392" y2="97" marker-end="url(#b)"></line>
+      <text class="t-edge" x="347" y="88" text-anchor="middle">interleaved L/R</text>
+
+      <rect class="box-key" x="396" y="70" width="230" height="56" rx="4"></rect>
+      <text class="t-block" x="511" y="93" text-anchor="middle">Output trim</text>
+      <text class="t-sub"   x="511" y="111" text-anchor="middle">&minus;20 dB default, 10 ms ramp</text>
+      <line class="flow" x1="626" y1="97" x2="716" y2="97" marker-end="url(#b)"></line>
+
+      <rect class="box" x="720" y="70" width="160" height="56" rx="4"></rect>
+      <text class="t-block" x="800" y="93" text-anchor="middle">Stereo bus</text>
+      <text class="t-sub"   x="800" y="111" text-anchor="middle">float, never clamped</text>
+
+      <!-- scope tap -->
+      <path class="flow-side" d="M 278 121 L 278 186" marker-end="url(#b)"></path>
+      <rect class="box" x="176" y="190" width="204" height="44" rx="4"></rect>
+      <text class="t-block" x="278" y="211" text-anchor="middle">Scope capture</text>
+      <text class="t-sub"   x="278" y="227" text-anchor="middle">2 periods &rarr; editor, 20 fps</text>
+      <text class="t-edge" x="288" y="160">tap</text>
+    </svg>
+  </div>
+  <figcaption><b>The mix.</b> The trim is the only stage with no counterpart in the DXi. The tap into the scope is a lock-free handover to the UI thread, not a second signal path &mdash; nothing downstream of it hears the capture.</figcaption>
+</figure>
+
+<h2>Where each control acts</h2>
+<p class="lede">Keyed to the stages above. Twelve of these are envelopes; ten of those are per-partial.</p>
+
+<table>
+  <thead>
+    <tr><th>Stage</th><th>Control</th><th>Count</th><th>What it changes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="stage">1</td><td>Vibrato rate &amp; depth</td><td class="num">2</td><td>Added to the phase step, so it bends pitch</td></tr>
+    <tr><td class="stage">1</td><td>Pitch wheel</td><td class="num">&mdash;</td><td>Re-read every block; bends notes already sounding</td></tr>
+    <tr><td class="stage">2</td><td>Harmonic level, phase, invert</td><td class="num">30</td><td>Amplitude and phase of each partial</td></tr>
+    <tr><td class="stage">2</td><td>Formant ADSR + level, env, invert</td><td class="num">70</td><td>An envelope per partial</td></tr>
+    <tr><td class="stage">2</td><td>Harmonic LFO rate &amp; depth</td><td class="num">20</td><td>Amplitude wobble per partial</td></tr>
+    <tr><td class="stage">A&ndash;C</td><td>Filter ADSR + level</td><td class="num">5</td><td>Sweeps the lookup bin, not a cutoff</td></tr>
+    <tr><td class="stage">C</td><td>Cutoff, gain, poles</td><td class="num">3</td><td>Rebuilds the table &mdash; shared by all voices</td></tr>
+    <tr><td class="stage">C</td><td>Low pass, high pass, comb, grass</td><td class="num">4</td><td>Which shapes fold in, and how</td></tr>
+    <tr><td class="stage">3</td><td>Amplitude ADSR + level</td><td class="num">5</td><td>The note's own envelope</td></tr>
+    <tr><td class="stage">4</td><td>Tremolo rate &amp; depth</td><td class="num">2</td><td>Amplitude only</td></tr>
+    <tr><td class="stage">5</td><td>Velocity, CC7</td><td class="num">&mdash;</td><td>Voice gain, on a square-root law</td></tr>
+    <tr><td class="stage">6</td><td>Ladder switch</td><td class="num">1</td><td>In or out; the shape itself is fixed</td></tr>
+    <tr><td class="stage">7</td><td>Pan, and CC10</td><td class="num">1</td><td>The knob offsets the controller</td></tr>
+    <tr><td class="stage">mix</td><td>Output trim</td><td class="num">1</td><td>Post-mix gain, smoothed</td></tr>
+  </tbody>
+</table>
+
+<h2>Five things that catch people out</h2>
+<p class="lede">All of these are the DXi's, and all of them are measured rather than assumed.</p>
+
+<ul class="oddities">
+  <li>
+    <div class="what">The filter isn't a filter<span>stages A&ndash;C</span></div>
+    <p>There's no time-domain filter in the additive path at all. The 552 bins sit on a <b>quarter-semitone</b> grid, bin&nbsp;276 pinned to 440&nbsp;Hz, spanning 8.18&nbsp;Hz to 23.3&nbsp;kHz; each partial reads the table at its own offset. The envelope moves the <i>bin</i>, downward, from 440&nbsp;Hz.</p>
+  </li>
+  <li>
+    <div class="what">The ladder barely filters<span>stage 6</span></div>
+    <div class="body">
+      <p>Measured: a flat <b>+10.6&nbsp;dB</b>, a &minus;3&nbsp;dB corner at <b>0.198&nbsp;&times;&nbsp;Nyquist</b>, and <b>0.22&nbsp;dB</b> of resonance &mdash; so not really a ladder, just a four-pole low pass. And the synth has only ten partials, so it only reaches that corner above about <b>B4</b>. The worst any partial moves when you switch it out:</p>
+      <table class="mini">
+        <tr><td>C2, 65&nbsp;Hz</td><td>0.06 dB</td><td>nothing at all</td></tr>
+        <tr><td>A3, 220&nbsp;Hz</td><td>0.24 dB</td><td>nothing at all</td></tr>
+        <tr><td>A4, 440&nbsp;Hz</td><td>1.97 dB</td><td>just audible</td></tr>
+        <tr><td>C6, 1047&nbsp;Hz</td><td>21.44 dB</td><td>a real filter</td></tr>
+      </table>
+      <p>Its corner also <b>moves with the sample rate</b> &mdash; the coefficients are never scaled &mdash; so the same patch is over an octave brighter at 96&nbsp;k than at 44.1&nbsp;k. That one is a defect, and it is not fixed.</p>
+    </div>
+  </li>
+  <li>
+    <div class="what">Pan was never wrong<span>stage 7</span></div>
+    <p>Worth recording because this page said the opposite. The DXi's <code>L = &radic;(2(1&minus;n/128))</code>, <code>R = &radic;(2n/128)</code> is a textbook <b>constant-power</b> law &mdash; <code>L&sup2;+R&sup2; = 2.000</code> at every position, so a note is equally loud wherever it sits. Only the <i>normalisation</i> was unusual: unity at the centre, leaving a hard-panned note peaking 3.01&nbsp;dB above a centred one. Divided by &radic;2 now, so unity sits at the ends and panning can never add peak level. The taper is untouched.</p>
+  </li>
+  <li>
+    <div class="what">The wheel bends an octave<span>stage 1</span></div>
+    <p><code>2^((wheel &minus; &frac12;) &times; 2)</code>, so the end stops are &times;&frac12; and &times;2 &mdash; six times the usual &plusmn;2 semitones, and deliberate.</p>
+  </li>
+  <li>
+    <div class="what">The headroom cancels itself<span>stages 5 &amp; 6</span></div>
+    <p>The voice gain carries <code>&times; 0.25</code> under the original's own comment <i>&ldquo;allow for 12dB of headroom&rdquo;</i> &mdash; and the ladder ends <code>&times; 5</code> four lines later. Net <b>&times;1.25</b>, above unity. One note at the factory patch peaked at <b>+9.4&nbsp;dBFS</b>; sixteen reached <b>+25.7&nbsp;dB</b>. It also flattened velocity completely: everything from 16 upward landed above the host's ceiling and came out at the same level. Hence the trim, which defaults 20&nbsp;dB down.</p>
+  </li>
+</ul>
+
+<footer>
+  Drawn from <span class="mono">Voice.cpp</span>, <span class="mono">Synth.cpp</span>, <span class="mono">FilterInfo.cpp</span> and <span class="mono">ForTranProcessor.cpp</span> in the VST3 port, and checked against the 2003 DXi sources. Constants and levels are measured, not estimated &mdash; and where a measurement here has turned out to be wrong, it is corrected above rather than quietly dropped.
+</footer>
+
+</div>
