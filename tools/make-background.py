@@ -20,7 +20,13 @@ Two deliberate changes to the artwork.
    font, weight and colour match exactly and no font has to be available to
    run this script.
 
-4. The row of harmonic phase knobs is labelled "Phase". That row is a real
+4. The painted word "Level", which labels the filter envelope's level knob,
+   is put back where it belongs. It is the ONLY ink in the artwork below the
+   panel border, so growing the panel for change 1 carried it 20 px down
+   with the border and left it stranded 30 px under its knob instead of 10.
+   It is excluded from that move and transplanted to its original height.
+
+5. The row of harmonic phase knobs is labelled "Phase". That row is a real
    -90 to +90 degree phase control per harmonic and always was, but it is
    unlabelled too, so it reads as another anonymous row of knobs.
 
@@ -89,6 +95,18 @@ WIDEN = 224
 # clipped - a box tight to the ink is what left ghost streaks the first time
 # the HARMONICS label was moved. "Enable" starts at x 765, so the right edge
 # has to stay below that.
+# The word "Level", under the filter envelope's level knob (which the editor
+# places at y 327..356). Ink at x 162..190, y 366..374; the box is padded to
+# clear columns and rows on every side, checked to hold nothing else.
+SRC_LEVEL = (158, 362, 195, 379)
+
+# Ink-free columns either side of it, for the two different jobs below: the
+# left/right pair anchors the horizontal interpolation that erases it from
+# the moved band, and the right pair estimates the background it was painted
+# on so the ink can be keyed out.
+SRC_LEVEL_ANCHORS = (157, 196)
+SRC_LEVEL_BG_COLS = (196, 207)
+
 SRC_INV = (736, 261, 759, 278)
 
 # Clear columns beside it, used to estimate the background the word is
@@ -166,6 +184,28 @@ def interior_colour(px, w, y0, y1):
         vals = sorted((px[x, y] for y in range(y0, y1)), key=sum)
         out.append(vals[len(vals) // 2])
     return out
+
+
+def erase_by_interpolation(img, box, anchors):
+    """Paint a box out by interpolating across it, row by row.
+
+    Used on a copy of the artwork, to lift the word "Level" out before the
+    band it sits in is moved. A per-column median is no good here - that is
+    for panel INTERIOR, and this is the border band, which is horizontal, so
+    a column tells you nothing. A per-row median is no good either, because
+    the band also carries a slow left-to-right gradient. Interpolating each
+    row between the clear columns either side gets both.
+    """
+    x0, y0, x1, y1 = box
+    left, right = anchors
+    px = img.load()
+    span = float(right - left)
+    for y in range(y0, y1):
+        a = px[left, y]
+        b = px[right, y]
+        for x in range(x0, x1):
+            t = (x - left) / span
+            px[x, y] = tuple(int(round(a[c] + (b[c] - a[c]) * t)) for c in range(3))
 
 
 def transplant_label(out, src, box, dest, bg_cols):
@@ -307,8 +347,13 @@ def main():
             gp[x, y] = fill[x]
     out.paste(gap, (0, BORDER_TOP))
 
-    # 3. The border band and the outer background, moved down.
-    out.paste(src.crop((0, BORDER_TOP, w, h)), (0, BORDER_TOP + GROW))
+    # 3. The border band and the outer background, moved down - but WITHOUT
+    #    the word "Level", which is the only ink down there and belongs with
+    #    the knob above it, not with the border. It is erased from a copy
+    #    here and put back at its own height in step 5.
+    moved = src.copy()
+    erase_by_interpolation(moved, SRC_LEVEL, SRC_LEVEL_ANCHORS)
+    out.paste(moved.crop((0, BORDER_TOP, w, h)), (0, BORDER_TOP + GROW))
 
     # 4. Erase the label where it was, and put it back lower.
     op = out.load()
@@ -318,7 +363,15 @@ def main():
             op[x, y] = fill[x]
     out.paste(label, (x0, y0 + GROW))
 
-    # 5. The strip on the right: the last column, repeated. Done after the
+    # 5. "Level" back at its original height, ten pixels under the knob it
+    #    names rather than thirty. Keyed rather than pasted, because it now
+    #    lands on the panel's interior fill instead of the outer background
+    #    it was painted on.
+    transplant_label(out, src, SRC_LEVEL, (SRC_LEVEL[0], SRC_LEVEL[1]), SRC_LEVEL_BG_COLS)
+    print("Level label: back at y %d..%d, under the filter level knob (which ends at y 356)"
+          % (SRC_LEVEL[1] + 4, SRC_LEVEL[1] + 12))
+
+    # 6. The strip on the right: the last column, repeated. Done after the
     #    vertical work so it picks up the moved border and the grown height,
     #    and the new area is a seamless continuation of the panel's edge.
     if WIDEN > 0:
@@ -326,13 +379,13 @@ def main():
         for x in range(w, w + WIDEN):
             out.paste(edge, (x, 0))
 
-    # 6. Label the invert row. Done last, onto the finished canvas, because
+    # 7. Label the invert row. Done last, onto the finished canvas, because
     #    it composites against whatever is already at the destination.
     ink = transplant_label(out, src, SRC_INV, DST_INV, SRC_INV_BG_COLS)
     print("Inv label: x %d..%d, under the first invert button (buttons end y 355), ink %s"
           % (DST_INV[0] + 3, DST_INV[0] + 18, ink))
 
-    # 7. Label the phase row, set from the artwork's own letters.
+    # 8. Label the phase row, set from the artwork's own letters.
     sp = src.load()
     letters = [
         glyph_coverage(sp, GLYPH_P, ink),

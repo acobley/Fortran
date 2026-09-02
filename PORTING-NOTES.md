@@ -492,6 +492,32 @@ moves; `kEditorWidth` and `WIDEN` have to stay in step.
 * **`NewSpin`** text cyclers for the four filter shapes — the same idea as
   SpaceDub's `SdTextStepper`.
 
+### The word "Level" had to be rescued from the move
+
+Growing the panel (below) moves everything from the border down by 20 px.
+The painted **"Level"**, which labels the filter envelope's level knob, is
+the **only ink in the whole artwork below that border** - so it went with
+the border, and ended up 30 px under its knob instead of 10. Detached, and
+sitting among the outer background rather than in the panel.
+
+It is excluded from the move and put back at its own height. Two different
+techniques, because the two halves of the job are different problems:
+
+* **Erasing it from the band that moves** uses horizontal interpolation
+  across the box, row by row, between the clear columns either side. Not a
+  per-column median - that is for panel interior, and this is the border
+  band, which is horizontal, so a column tells you nothing about it. Not a
+  per-row median either, because the band also carries a slow left-to-right
+  gradient. Interpolating each row between its neighbours gets both. The
+  seam that leaves is **one level** in the green channel, where the panel's
+  own gradient moves about one level per ten pixels.
+* **Putting it back** uses the same keying as the "Inv" transplant, because
+  it now lands on the panel's interior fill rather than the outer background
+  it was painted on.
+
+It ends up inside the panel now rather than just below it, which is where
+the other labels in that group already sit.
+
 ### The one change to the artwork
 
 `tools/make-background.py` builds `resource/background.png` from the DXi's
