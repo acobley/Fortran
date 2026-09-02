@@ -21,7 +21,7 @@ int main(){
     printf("parameters: %d\n", (int)kNumParams);
     // 122 from the DXi's own Parameters.h, plus the 20 harmonic LFO controls
     // appended after them. The split is asserted below, where it matters.
-    chk(kNumParams==144,"count is not 122 DXi + 20 LFO + trim + ladder switch",0);
+    chk(kNumParams==145,"count is not 122 DXi + 20 LFO + trim + ladder + pan",0);
     for(int i=0;i<(int)kNumParams;++i){
         const ParamDef&d=kParams[i];
         chk(d.id==(Steinberg::Vst::ParamID)i,"id does not match its index",i);
@@ -208,7 +208,7 @@ int main(){
     {
         printf("harmonic LFO: ids %d..%d and %d..%d, of %d\n",
                kHarmLfoRate1, kHarmLfoRate10, kHarmLfoDepth1, kHarmLfoDepth10, (int)kNumParams);
-        chk(kNumParams == 144, "the table is not 122 DXi + 20 LFO + trim + ladder switch", 0);
+        chk(kNumParams == 145, "the table is not 122 DXi + 20 LFO + trim + ladder + pan", 0);
 
         // Every DXi parameter must still be where it was.
         chk(kEnable == 0, "kEnable moved", 0);
@@ -217,7 +217,8 @@ int main(){
         chk(kHarmLfoDepth1 == kHarmLfoRate10 + 1, "the depth block does not follow the rate block", 0);
         chk(kOutputLevel == kHarmLfoDepth10 + 1, "the output trim is not after the LFO block", 0);
         chk(kLadderEnable == kOutputLevel + 1, "the ladder switch is not after the trim", 0);
-        chk(kLadderEnable == (int)kNumParams - 1, "the ladder switch is not last", 0);
+        chk(kPan == kLadderEnable + 1, "pan is not after the ladder switch", 0);
+        chk(kPan == (int)kNumParams - 1, "pan is not last", 0);
         chk(kParams[kLadderEnable].plainDefault == 1.0,
             "the ladder does not default to IN - that would change the DXi's sound", kLadderEnable);
 
@@ -276,6 +277,40 @@ int main(){
         chk(worst < 1e-9, "a displayed trim does not read back", 0);
         chk(outputControlFromDb(99.0) == 1.0, "a huge gain does not clamp to the top", 0);
         chk(outputControlFromDb(-999.0) == 0.0, "a huge cut does not clamp to silence", 0);
+    }
+
+    // -- pan, which offsets CC10 rather than replacing it ----------------
+    {
+        chk(kParams[kPan].plainDefault == 50.0, "pan does not default to centre", kPan);
+
+        // At the knob's centre, CC10 must arrive untouched - that is what
+        // makes it an offset rather than a replacement.
+        int worst = 0;
+        for (int cc = 0; cc <= 127; ++cc)
+            worst = std::max(worst, std::abs(combinePan(cc, 0.5) - cc));
+        printf("pan: knob centred, worst change to CC10 across 0..127: %d\n", worst);
+        chk(worst == 0, "the pan knob at centre does not leave CC10 alone", kPan);
+
+        // From a centred CC10 the knob alone reaches both ends.
+        printf("pan: from CC10 64, knob 0%% -> %d, 50%% -> %d, 100%% -> %d\n",
+               combinePan(64, 0.0), combinePan(64, 0.5), combinePan(64, 1.0));
+        chk(combinePan(64, 0.0) == 0, "the knob cannot reach hard left from centre", kPan);
+        chk(combinePan(64, 1.0) == 127, "the knob cannot reach hard right from centre", kPan);
+
+        // And it clamps rather than wrapping.
+        chk(combinePan(127, 1.0) == 127, "pan wraps past hard right", kPan);
+        chk(combinePan(0, 0.0) == 0, "pan wraps past hard left", kPan);
+
+        char where[12] = {};
+        formatPan(0.5, where, sizeof where);
+        printf("pan reads: 50%% = \"%s\"", where);
+        chk(std::string(where) == "centre", "the pan centre does not read as centre", kPan);
+        formatPan(0.0, where, sizeof where);
+        printf(", 0%% = \"%s\"", where);
+        chk(std::string(where) == "L 100", "hard left does not read as L 100", kPan);
+        formatPan(1.0, where, sizeof where);
+        printf(", 100%% = \"%s\"\n", where);
+        chk(std::string(where) == "R 100", "hard right does not read as R 100", kPan);
     }
 
     printf("kEnable default = %.0f (DXi shipped this ON)\n", kParams[kEnable].plainDefault);

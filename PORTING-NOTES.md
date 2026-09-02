@@ -1637,6 +1637,47 @@ Note what the rate control actually is: the LFO period is `rate × sampleRate`
 samples, i.e. **`rate` seconds**. It is a period, not a frequency, despite
 the name. Kept.
 
+### Pan: a new control, and a correction to what the old law was
+
+**The DXi had no pan control at all.** Not a parameter, not a dialog
+control, not even a stranded id in `resource.h` - the only way to place a
+voice was `abyCC[10]`, read in `synthNote`'s prologue (`ForTran.cpp:773`),
+which is why pan follows the controller live rather than latching at
+note-on.
+
+**A correction first.** These notes previously called the DXi's law
+"backwards from every pan law that is not this one". That was unfair, and
+it was measured wrongly - by peak rather than by power. The taper is a
+textbook **constant-power** law:
+
+| n | L | R | L²+R² |
+|---|---|---|---|
+| 0 | 1.414 | 0.000 | 2.000 |
+| 32 | 1.225 | 0.707 | 2.000 |
+| 64 | 1.000 | 1.000 | 2.000 |
+
+Constant at every position, so a note really is equally loud wherever it
+sits. What is unconventional is only where the law is **normalised**: the
+DXi puts unity at the *centre*, so a hard-panned note peaks 3.01 dB above a
+centred one. The DAW convention normalises the other way, so that panning
+can never add peak level.
+
+**DELIBERATE DEVIATION: divided by sqrt(2).** The taper is untouched - it
+was already right - and unity now sits at the extremes with the centre 3 dB
+down. Everything is 3.01 dB quieter than the DXi at every pan position,
+which the output trim covers. `VoiceTests` check 12 measures power across
+all 128 positions (varies by 0.00 %) and asserts that no position peaks
+above a hard-panned one.
+
+**The knob OFFSETS CC10, it does not replace it.** At its centre the
+controller arrives untouched; the two are summed in MIDI units and clamped.
+So automating either still works, a host that sends no CC10 simply starts
+from centre, and from a centred CC10 the knob alone reaches both ends.
+`ParamTableTests` asserts the centre is a no-op across all 128 CC values.
+
+It reads as the offset it is - `centre`, `L 42`, `R 42` - rather than as a
+position, on the panel and in the host.
+
 ### Level — measured, and it is hot
 
 The original's gain staging is `sqrt(cc7·vel/127²)·0.25` for "12 dB of

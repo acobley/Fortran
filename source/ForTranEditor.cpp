@@ -281,36 +281,43 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 	// The button that summons the harmonic LFO panel, in the space below the
 	// third envelope display. Nowhere on the DXi's own artwork has room.
 	{
-		// The output trim, in the band below the envelope panels. It has no
-		// place on the DXi's own artwork - the original had no output
-		// control at all, which is half of why it needs one.
-		addKnobAt (kOutputLevel,
-		           CRect (kEnvPanelX, kOutputKnobTop,
-		                  kEnvPanelX + kKnobSize, kOutputKnobTop + kKnobSize),
-		           frame);          // a CFrame is a container like any other
-		frame->addView (new FtLabel (
-		    CRect (kEnvPanelX + kKnobSize + 8, kOutputKnobTop + 9,
-		           kEnvPanelX + kKnobSize + 70, kOutputKnobTop + 21),
-		    "Output", kLeftText));
+		// Three controls in a row under the envelope panels, each with its
+		// name beneath it: the output trim, pan, and the ladder switch.
+		// None of them has a place on the DXi's own artwork - the original
+		// had no output control and no pan control at all.
+		auto label = [this] (int centre, const char* text) {
+			frame->addView (new FtLabel (
+			    CRect (centre - 33, kStripLabelTop, centre + 33, kStripLabelTop + 12),
+			    text, kCenterText));
+		};
 
-		// The ladder switch, sharing the row. Green is on, as everywhere.
+		addKnobAt (kOutputLevel,
+		           CRect (kStripCol1 - kKnobSize / 2, kStripRowTop,
+		                  kStripCol1 - kKnobSize / 2 + kKnobSize, kStripRowTop + kKnobSize),
+		           frame);          // a CFrame is a container like any other
+		label (kStripCol1, "Output");
+
+		addKnobAt (kPan,
+		           CRect (kStripCol2 - kKnobSize / 2, kStripRowTop,
+		                  kStripCol2 - kKnobSize / 2 + kKnobSize, kStripRowTop + kKnobSize),
+		           frame);
+		label (kStripCol2, "Pan");
+
+		// Green is on, as everywhere. Centred on the knobs' own centre line.
 		{
-			const CCoord right = kEnvPanelX + kEnvPanelWidth;
+			const CCoord top = kStripRowTop + (kKnobSize - kToggleSize) / 2;
 			auto* t = new FtToggle (
-			    CRect (right - kToggleSize, kOutputKnobTop + 4,
-			           right, kOutputKnobTop + 4 + kToggleSize),
+			    CRect (kStripCol3 - kToggleSize / 2, top,
+			           kStripCol3 - kToggleSize / 2 + kToggleSize, top + kToggleSize),
 			    this, static_cast<int32_t> (kLadderEnable),
 			    bitmap ("button_off.png"), bitmap ("button_on.png"));
 			registerControl (kLadderEnable, t);
-			frame->addView (new FtLabel (
-			    CRect (right - kToggleSize - 62, kOutputKnobTop + 9,
-			           right - kToggleSize - 6, kOutputKnobTop + 21),
-			    "Ladder", kRightText));
 		}
+		label (kStripCol3, "Ladder");
 
 		frame->addView (new FtTextButton (
 		    CRect (kEnvPanelX, kLfoButtonTop,
-		           kEnvPanelX + kEnvPanelWidth, kLfoButtonTop + 18),
+		           kEnvPanelX + kEnvPanelWidth, kLfoButtonTop + 17),
 		    "Harmonic LFO...", [this] () { showLfoPanel (true); }));
 	}
 
@@ -453,6 +460,15 @@ std::string ForTranEditor::readoutTextFor (ParamID tag) const
 				char time[16] = {};
 				formatEnvelopeTime (seconds, time, sizeof (time));
 				std::snprintf (buf, sizeof (buf), "%s: %s", def.title, time);
+				break;
+			}
+
+			// Pan reads as the offset it is, not as a position.
+			if (tag == kPan)
+			{
+				char where[12] = {};
+				formatPan (inner, where, sizeof (where));
+				std::snprintf (buf, sizeof (buf), "%s: %s", def.title, where);
 				break;
 			}
 

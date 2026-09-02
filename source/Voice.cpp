@@ -158,16 +158,26 @@ void Voice::setChannelVolume (int volume)
 //------------------------------------------------------------------------
 void Voice::setPan (int pan)
 {
-	// panToLRGain, verbatim. The table is
+	// panToLRGain. The DXi's table is
 	//     dx = n/128,  L = sqrt(2(1-dx)),  R = sqrt(2 dx)
-	// for n 0..64, mirrored above centre. Note that CENTRE IS UNITY, not
-	// 0.707: the law is equal-power scaled so a centred note is full level.
-	// A textbook cos/sin pan would be 3 dB quieter in the middle.
+	// for n 0..64, mirrored above centre.
+	//
+	// Its TAPER is not the odd part - it is a textbook constant-power law,
+	// L^2 + R^2 = 2.000 at every position, so a note is equally loud
+	// wherever it sits. What is unconventional is where it is normalised:
+	// the DXi puts unity at the CENTRE, which leaves a hard-panned note
+	// peaking 3.01 dB higher than a centred one.
+	//
+	// DELIBERATE DEVIATION: divided by sqrt(2), which is the convention -
+	// unity at the EXTREMES, centre 3 dB down, so panning can never add
+	// peak level. The taper is untouched; it was already right. Everything
+	// is therefore 3.01 dB quieter than the DXi at every pan position, which
+	// the output trim covers. See PORTING-NOTES section 7.
 	int n = std::clamp (pan, 0, 127);
 	n = (n * 128) / 127;
 
-	auto tableL = [] (int i) { return std::sqrt (2.0 * (1.0 - i / 128.0)); };
-	auto tableR = [] (int i) { return std::sqrt (2.0 * (i / 128.0)); };
+	auto tableL = [] (int i) { return std::sqrt (1.0 - i / 128.0); };
+	auto tableR = [] (int i) { return std::sqrt (i / 128.0); };
 
 	if (n <= 64)
 	{

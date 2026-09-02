@@ -82,10 +82,18 @@ public:
 	static const int kEnvPanelTop    = 6;
 	static const int kEnvPanelGap    = 14;
 
-	/** The output trim, and the button that summons the LFO panel, in the
-	    band the panels no longer use. */
-	static const int kOutputKnobTop  = 350;
-	static const int kLfoButtonTop   = 384;
+	/** The band below the envelope panels: three controls in a row with
+	    their names underneath, then the button that summons the LFO panel.
+	    Labels go under rather than beside, because three of them side by
+	    side will not fit across 200 px any other way. */
+	static const int kStripRowTop    = 346;   // knobs
+	static const int kStripLabelTop  = 377;   // their names
+	static const int kLfoButtonTop   = 390;
+
+	/** Centres of the three, across the 200 px strip. */
+	static const int kStripCol1      = 885;   // output
+	static const int kStripCol2      = 952;   // pan
+	static const int kStripCol3      = 1019;  // ladder
 
 	/** The harmonic LFO panel. Ten columns on the same 30 px pitch the
 	    harmonic sliders use, two rows of knobs, centred over the window. */

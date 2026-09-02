@@ -266,6 +266,11 @@ enum Param : Steinberg::Vst::ParamID
 	    both ways. See the note below. */
 	kLadderEnable,
 
+	/** Pan. The DXi had no pan control at all - only CC10 - so this is new,
+	    and it OFFSETS the controller rather than replacing it: at its
+	    centre CC10 comes through untouched. See the note below. */
+	kPan,
+
 	kNumParams,
 
 	kBypass = 1000,         // standard VST3 bypass (kIsBypass)
@@ -386,6 +391,27 @@ void formatEnvelopeTime (double seconds, char* out, std::size_t outSize);
     number, which is taken as SECONDS. Returns false if there is no number
     at the front of the string. */
 bool parseEnvelopeTime (const char* text, double& seconds);
+
+//------------------------------------------------------------------------
+// Pan
+//
+// New. The DXi read CC10 in synthNote's prologue (ForTran.cpp:773) and had
+// no control for it anywhere - no parameter, no dialog control, no resource
+// id - so the only way to place a voice was to send the controller.
+//
+// This OFFSETS CC10 rather than replacing it: the knob's centre leaves the
+// controller exactly as it arrives, and the two are summed in MIDI units
+// and clamped. Automating either still works, and a host that sends no CC10
+// simply starts from centre.
+//------------------------------------------------------------------------
+
+/** Combine the incoming CC10 (0..127, 64 centred) with the knob (0..1, 0.5
+    centred) into the pan the voice should use. */
+int combinePan (int cc10, double knob);
+
+/** "centre", "L 42", "R 42" - the knob as an offset, not a position, since
+    that is what it is. `outSize` should be at least 12. */
+void formatPan (double knob, char* out, std::size_t outSize);
 
 //------------------------------------------------------------------------
 // Harmonic phase

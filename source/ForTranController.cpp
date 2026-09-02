@@ -37,6 +37,8 @@ const char* unitsFor (const ParamDef& def)
 		return "";
 	if (def.id == kOutputLevel)
 		return "";                    // "-20.0 dB", not "-20.0 dB %"
+	if (def.id == kPan)
+		return "";                    // "L 42", not "L 42 %"
 	return def.units;
 }
 
@@ -83,6 +85,14 @@ public:
 				std::snprintf (text, sizeof (text), "off");
 			else
 				std::snprintf (text, sizeof (text), "%+.1f dB", outputDecibels (inner));
+			UString (string, str16BufferSize (String128)).assign (USTRING (text));
+			return;
+		}
+
+		// Pan reads as an offset from CC10, as the panel does.
+		if (mDef.id == kPan)
+		{
+			formatPan (mDef.toInternal (normalized), text, sizeof (text));
 			UString (string, str16BufferSize (String128)).assign (USTRING (text));
 			return;
 		}

@@ -263,6 +263,9 @@ const ParamDef kParams[kNumParams] =
 	// Defaults ON, which is the DXi: the ladder is in the path unless it is
 	// deliberately taken out.
 	{ kLadderEnable,          "Ladder Filter",       "",   ParamType::Bool,      0.0,    1.0,    1.0,   0.0,   1.0,  1, false },
+
+	// Centred, so it offsets CC10 by nothing until it is moved.
+	{ kPan,                   "Pan",                 "",   ParamType::Float,     0.0,  100.0,  50.00,   0.0,   1.0,  0, true  },
 };
 
 //------------------------------------------------------------------------
@@ -439,6 +442,30 @@ double outputControlFromDb (double db)
 {
 	const double c = 1.0 + db / kOutputRangeDb;
 	return (c > 0.0) ? ((c < 1.0) ? c : 1.0) : 0.0;
+}
+
+//------------------------------------------------------------------------
+int combinePan (int cc10, double knob)
+{
+	const double k = (knob > 0.0) ? ((knob < 1.0) ? knob : 1.0) : 0.0;
+	// The knob's full travel is the full pan range, so from a centred CC10
+	// it reaches either end on its own.
+	const double combined = cc10 + (k - 0.5) * 128.0;
+	const int n = static_cast<int> (combined + 0.5);
+	return (n < 0) ? 0 : ((n > 127) ? 127 : n);
+}
+
+//------------------------------------------------------------------------
+void formatPan (double knob, char* out, std::size_t outSize)
+{
+	if (!out || outSize == 0)
+		return;
+	const double off = (knob - 0.5) * 200.0;          // -100 .. +100
+	const double rounded = (off < 0.0) ? -std::floor (-off + 0.5) : std::floor (off + 0.5);
+	if (rounded == 0.0)
+		std::snprintf (out, outSize, "centre");
+	else
+		std::snprintf (out, outSize, "%s %.0f", (rounded < 0.0) ? "L" : "R", std::fabs (rounded));
 }
 
 //------------------------------------------------------------------------

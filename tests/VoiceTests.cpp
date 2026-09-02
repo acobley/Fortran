@@ -541,6 +541,64 @@ int main ()
 		}
 	}
 
+	// 12. The pan law. Its TAPER is the DXi's and was always a textbook
+	//     constant-power one - L^2 + R^2 is the same at every position, so a
+	//     note is equally loud wherever it sits. Only the normalisation
+	//     changed: the DXi put unity at the centre, which left a hard-panned
+	//     note peaking 3 dB above a centred one. Unity now sits at the
+	//     extremes, the convention, so panning can never add peak level.
+	std::printf("12. pan: constant power, and peak no longer rises with the pan\n");
+	{
+		VoiceParams p;
+		for (int i = 0; i < 10; ++i) { p.harmLevel[i] = (i == 0) ? 1.f : 0.f; p.harmPhase[i] = 0.5f;
+		                               p.formantEnable[i] = false; }
+		p.envAttack = 0.f; p.envDecay = 0.f; p.envSustain = 1.f;
+
+		double worstPower = 0.0, worstPeak = 0.0, centrePower = 0.0;
+		for (int n = 0; n <= 127; n += 1)
+		{
+			Voice v; v.noteOn(69, 440.0, 100, 127, 64, p, 48000.0);
+			v.setPan(n);
+			std::vector<float> st(2048*2, 0.f);
+			v.render(st.data(), 2048, fi);
+			double pl = 0.0, pr = 0.0;
+			for (int i = 1024; i < 2048; ++i)
+			{ pl = std::fmax(pl, std::fabs((double)st[2*i])); pr = std::fmax(pr, std::fabs((double)st[2*i+1])); }
+			const double power = pl*pl + pr*pr;
+			if (n == 64) centrePower = power;
+			worstPeak = std::fmax(worstPeak, std::fmax(pl, pr));
+			worstPower = std::fmax(worstPower, power);
+		}
+		double lowestPower = 1e9;
+		for (int n : {0, 32, 64, 96, 127})
+		{
+			Voice v; v.noteOn(69, 440.0, 100, 127, 64, p, 48000.0);
+			v.setPan(n);
+			std::vector<float> st(2048*2, 0.f);
+			v.render(st.data(), 2048, fi);
+			double pl = 0.0, pr = 0.0;
+			for (int i = 1024; i < 2048; ++i)
+			{ pl = std::fmax(pl, std::fabs((double)st[2*i])); pr = std::fmax(pr, std::fabs((double)st[2*i+1])); }
+			std::printf("   pan %3d: L %.3f  R %.3f  power %.4f  peak %.3f\n", n, pl, pr, pl*pl+pr*pr, std::fmax(pl,pr));
+			lowestPower = std::fmin(lowestPower, pl*pl + pr*pr);
+		}
+		// Constant power across the whole sweep - the taper is untouched.
+		std::printf("   power varies by %.2f%% across all 128 positions\n",
+		            100.0 * (worstPower - lowestPower) / centrePower);
+		chk((worstPower - lowestPower) / centrePower < 0.02, "the pan law is no longer constant power");
+
+		// And no position peaks above a centred, hard-panned reference: the
+		// whole point of the renormalisation.
+		Voice ref; ref.noteOn(69, 440.0, 100, 127, 0, p, 48000.0);
+		std::vector<float> rs(2048*2, 0.f);
+		ref.render(rs.data(), 2048, fi);
+		double hardPeak = 0.0;
+		for (int i = 1024; i < 2048; ++i)
+			hardPeak = std::fmax(hardPeak, std::fabs((double)rs[2*i]));
+		std::printf("   worst peak over the sweep %.3f, hard left %.3f\n", worstPeak, hardPeak);
+		chk(worstPeak <= hardPeak * 1.001, "some pan position peaks above hard-panned - the renormalisation is wrong");
+	}
+
 	std::printf(fails ? "\n%d CHECK(S) FAILED\n" : "\nall checks passed\n", fails);
 	return fails != 0;
 }

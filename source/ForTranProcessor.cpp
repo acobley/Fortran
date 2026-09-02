@@ -248,7 +248,10 @@ tresult PLUGIN_API ForTranProcessor::process (ProcessData& data)
 	// ...except channel volume, pan and the wheel, which the DXi re-read in
 	// synthNote's prologue every block, so they follow the controller live.
 	mSynth.setChannelVolume (static_cast<int> (mMidiVolume * 127.0 + 0.5));
-	mSynth.setPan (static_cast<int> (mMidiPan * 127.0 + 0.5));
+	// The Pan knob offsets CC10 rather than replacing it, so a host that
+	// automates either still works and one that sends neither starts centred.
+	mSynth.setPan (combinePan (static_cast<int> (mMidiPan * 127.0 + 0.5),
+	                           paramDef (kPan).toInternal (mParams[kPan])));
 	mSynth.setPitchWheel (mMidiBend);
 
 	// The ladder switch goes the same way, so it can be thrown on a note

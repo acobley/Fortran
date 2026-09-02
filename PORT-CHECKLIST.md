@@ -144,9 +144,11 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
 - [ ] 🧑 **CC7 (channel volume)** — should ride notes that are already
       sounding, on a square-root law: CC7 at 32 is half the level of CC7 at
       127, not a quarter.
-- [ ] 🧑 **CC10 (pan)** — centre is **full level**, hard left/right is √2
-      *louder*, not quieter. Worth listening for specifically, because it is
-      backwards from every pan law that is not this one.
+- [ ] 🧑 **CC10 (pan)** — and the new Pan knob, which **offsets** it rather
+      than replacing it: with the knob centred, CC10 should behave exactly
+      as it did before the knob existed. The law is now normalised the
+      conventional way (unity at the extremes, centre 3 dB down), so a
+      hard-panned note should no longer peak louder than a centred one.
 
 ## Phase 6 — Audio Unit and ship checks  ← CURRENT
 
