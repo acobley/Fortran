@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	Info.plist template for the Audio Unit (AUv2) wrapper.
+
+	The wrapper itself is Steinberg's, from public.sdk/source/vst/auwrapper; it
+	loads the VST3 that CMake symlinks into the .component's Resources folder
+	and needs no per-plug-in C++ at all. Everything specific to YOUR plug-in is
+	in this file, so this is the only place the AU needs editing.
+
+	The three four-character codes are the plug-in's identity to macOS. Once
+	you have shipped a build, changing any of them makes every existing session
+	lose the plug-in - treat them exactly like the class UIDs in your IDs
+	header.
+
+	  type          aumu = instrument. ForTran is a genuine polyphonic
+	                synthesiser: CDXi, synthNote(), per-note ADSR envelopes.
+	  subtype       FTrn
+	  manufacturer  AECo - the same across A. E. Cobley plug-ins; only the
+	                subtype distinguishes ForTran from SpaceDub.
+	  subtype       four characters identifying this plug-in
+	  manufacturer  four characters identifying you. Apple reserves
+	                all-lowercase codes for itself, so keep a capital.
+
+	Validate the result with:  auval -v aufx <subtype> <manufacturer>
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>1.0.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+
+	<key>AudioComponents</key>
+	<array>
+		<dict>
+			<key>factoryFunction</key>
+			<string>AUWrapperFactory</string>
+			<key>description</key>
+			<string>ForTran additive formant synthesiser</string>
+			<key>manufacturer</key>
+			<string>AECo</string>
+			<key>name</key>
+			<string>A. E. Cobley: ForTran</string>
+			<key>subtype</key>
+			<string>FTrn</string>
+			<key>type</key>
+			<string>aumu</string>
+			<!-- 0x00010000 == 1.0.0 -->
+			<key>version</key>
+			<integer>65536</integer>
+		</dict>
+	</array>
+
+	<!-- Read by the wrapper with sscanf("%x"), so this one is a hex string. -->
+	<key>AudioUnit Version</key>
+	<string>00010000</string>
+
+	<!-- MUST match what ForTranProcessor::setBusArrangements accepts.
+	     ForTran is an instrument: no audio input, one stereo output.
+	     0 inputs is how an AU declares that. auval is strict about this. -->
+	<key>AudioUnit SupportedNumChannels</key>
+	<array>
+		<dict>
+			<key>Inputs</key>
+			<string>0</string>
+			<key>Outputs</key>
+			<string>2</string>
+		</dict>
+	</array>
+</dict>
+</plist>
