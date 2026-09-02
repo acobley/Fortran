@@ -25,6 +25,20 @@ constexpr double kLadderF  = 0.50 * 1.16;
 const     double kLadderFb = 0.5 * (1.0 - 0.15 * kLadderF * kLadderF);
 const     double kLadderFf = 0.35013 * (kLadderF * kLadderF) * (kLadderF * kLadderF);
 
+/** What the ladder does to a signal well below its corner, which is a
+    fixed gain of 3.39 - and nothing else.
+
+    Each section is `y = x + 0.3*x' + (1-f)*y'`, so at DC it multiplies by
+    1.3/f; four of them give (1.3/f)^4, the feed-forward scales that (to
+    almost exactly 1, which cannot be chance), and the feedback loop divides
+    by 1+fb. The times 5 at the end is the original's.
+
+    Derived from the same three constants rather than written down as a
+    measured number, so it cannot drift away from the filter it matches. */
+const double kLadderDcGain =
+    5.0 * (kLadderFf * std::pow (1.3 / kLadderF, 4.0)) /
+    (1.0 + kLadderFb * (kLadderFf * std::pow (1.3 / kLadderF, 4.0)));
+
 /** The DXi built its LFO steps by dividing by the rate control:
         dLFOStepVibrato = 2*pi / (rate * sampleRate)
     so the control is really a PERIOD in seconds, and a rate of zero - the
@@ -277,14 +291,27 @@ float Voice::renderSample (const FilterInfo& filter)
 	double samp = envVolume * (1.0 + tremolo) * mVolume * sum;
 
 	// -- the fixed Moog ladder, per voice --------------------------------
-	samp -= mOut4 * kLadderFb;
-	samp *= kLadderFf;
-	mOut1 = samp  + 0.3 * mIn1 + (1.0 - kLadderF) * mOut1;   mIn1 = samp;
-	mOut2 = mOut1 + 0.3 * mIn2 + (1.0 - kLadderF) * mOut2;   mIn2 = mOut1;
-	mOut3 = mOut2 + 0.3 * mIn3 + (1.0 - kLadderF) * mOut3;   mIn3 = mOut2;
-	mOut4 = mOut3 + 0.3 * mIn4 + (1.0 - kLadderF) * mOut4;   mIn4 = mOut3;
+	if (mLadderEnabled)
+	{
+		samp -= mOut4 * kLadderFb;
+		samp *= kLadderFf;
+		mOut1 = samp  + 0.3 * mIn1 + (1.0 - kLadderF) * mOut1;   mIn1 = samp;
+		mOut2 = mOut1 + 0.3 * mIn2 + (1.0 - kLadderF) * mOut2;   mIn2 = mOut1;
+		mOut3 = mOut2 + 0.3 * mIn3 + (1.0 - kLadderF) * mOut3;   mIn3 = mOut2;
+		mOut4 = mOut3 + 0.3 * mIn4 + (1.0 - kLadderF) * mOut4;   mIn4 = mOut3;
 
-	samp = mOut4 * 5.0;
+		samp = mOut4 * 5.0;
+	}
+	else
+	{
+		// Level-matched bypass - see setLadderEnabled in Voice.h. The state
+		// is run down to zero rather than frozen, so switching the ladder
+		// back in mid-note starts from silence in its delays instead of
+		// from whatever was left in them, which would be a click.
+		samp *= kLadderDcGain;
+		mIn1 = mIn2 = mIn3 = mIn4 = 0.0;
+		mOut1 = mOut2 = mOut3 = mOut4 = 0.0;
+	}
 
 	// Advance. Vibrato is added to the phase step, as in the original.
 	mLfoThetaTremolo += mLfoStepTremolo;

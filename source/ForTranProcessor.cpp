@@ -251,6 +251,11 @@ tresult PLUGIN_API ForTranProcessor::process (ProcessData& data)
 	mSynth.setPan (static_cast<int> (mMidiPan * 127.0 + 0.5));
 	mSynth.setPitchWheel (mMidiBend);
 
+	// The ladder switch goes the same way, so it can be thrown on a note
+	// that is already sounding - which is the only way to judge a filter
+	// that does nothing below B4.
+	mSynth.setLadderEnabled (mParams[kLadderEnable] >= 0.5);
+
 	// No output bus, or nothing to do: still consume the events, so a
 	// note-off is never dropped and a note cannot hang.
 	if (data.numOutputs <= 0 || data.outputs == nullptr || data.numSamples <= 0)

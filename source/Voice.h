@@ -145,6 +145,18 @@ public:
 	void setPan (int pan);
 	void setPitchBend (double factor) { mBendFactor = factor; }
 
+	/** Switch the output ladder in or out. Pushed every block rather than
+	    latched at note-on, unlike almost everything else here: the point of
+	    the switch is to A/B it on a note that is already sounding.
+
+	    Bypass is LEVEL-MATCHED. The ladder is not only a filter, it is a
+	    fixed +10.6 dB, and a comparison where one side is ten decibels
+	    louder tells you nothing about the filtering. With it out, the same
+	    DC gain is applied as a plain multiply, so what changes is only what
+	    the four poles were doing - which below about B4 is nothing at all.
+	    See PORTING-NOTES section 7. */
+	void setLadderEnabled (bool enabled) { mLadderEnabled = enabled; }
+
 	/** Add this voice's output into interleaved stereo. */
 	void render (float* stereo, int numSamples, const FilterInfo& filter);
 
@@ -208,6 +220,7 @@ private:
 
 	// Moog ladder, "variation 2" from musicdsp.org - the same topology
 	// SpaceDub used. Cutoff and resonance are hardcoded in the DXi.
+	bool   mLadderEnabled = true;
 	double mIn1 = 0.0, mIn2 = 0.0, mIn3 = 0.0, mIn4 = 0.0;
 	double mOut1 = 0.0, mOut2 = 0.0, mOut3 = 0.0, mOut4 = 0.0;
 };

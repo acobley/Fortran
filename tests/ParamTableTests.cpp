@@ -21,7 +21,7 @@ int main(){
     printf("parameters: %d\n", (int)kNumParams);
     // 122 from the DXi's own Parameters.h, plus the 20 harmonic LFO controls
     // appended after them. The split is asserted below, where it matters.
-    chk(kNumParams==143,"count is not 122 DXi parameters plus 20 LFO plus the output trim",0);
+    chk(kNumParams==144,"count is not 122 DXi + 20 LFO + trim + ladder switch",0);
     for(int i=0;i<(int)kNumParams;++i){
         const ParamDef&d=kParams[i];
         chk(d.id==(Steinberg::Vst::ParamID)i,"id does not match its index",i);
@@ -208,7 +208,7 @@ int main(){
     {
         printf("harmonic LFO: ids %d..%d and %d..%d, of %d\n",
                kHarmLfoRate1, kHarmLfoRate10, kHarmLfoDepth1, kHarmLfoDepth10, (int)kNumParams);
-        chk(kNumParams == 143, "the table is not 122 DXi + 20 LFO + 1 trim", 0);
+        chk(kNumParams == 144, "the table is not 122 DXi + 20 LFO + trim + ladder switch", 0);
 
         // Every DXi parameter must still be where it was.
         chk(kEnable == 0, "kEnable moved", 0);
@@ -216,7 +216,10 @@ int main(){
         chk(kHarmLfoRate1 == 122, "the LFO block does not start straight after the DXi's", 0);
         chk(kHarmLfoDepth1 == kHarmLfoRate10 + 1, "the depth block does not follow the rate block", 0);
         chk(kOutputLevel == kHarmLfoDepth10 + 1, "the output trim is not after the LFO block", 0);
-        chk(kOutputLevel == (int)kNumParams - 1, "the output trim is not last", 0);
+        chk(kLadderEnable == kOutputLevel + 1, "the ladder switch is not after the trim", 0);
+        chk(kLadderEnable == (int)kNumParams - 1, "the ladder switch is not last", 0);
+        chk(kParams[kLadderEnable].plainDefault == 1.0,
+            "the ladder does not default to IN - that would change the DXi's sound", kLadderEnable);
 
         // Depth must default to OFF, or adding the feature would change
         // every existing sound.

@@ -290,8 +290,23 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 		           frame);          // a CFrame is a container like any other
 		frame->addView (new FtLabel (
 		    CRect (kEnvPanelX + kKnobSize + 8, kOutputKnobTop + 9,
-		           kEnvPanelX + kEnvPanelWidth, kOutputKnobTop + 21),
+		           kEnvPanelX + kKnobSize + 70, kOutputKnobTop + 21),
 		    "Output", kLeftText));
+
+		// The ladder switch, sharing the row. Green is on, as everywhere.
+		{
+			const CCoord right = kEnvPanelX + kEnvPanelWidth;
+			auto* t = new FtToggle (
+			    CRect (right - kToggleSize, kOutputKnobTop + 4,
+			           right, kOutputKnobTop + 4 + kToggleSize),
+			    this, static_cast<int32_t> (kLadderEnable),
+			    bitmap ("button_off.png"), bitmap ("button_on.png"));
+			registerControl (kLadderEnable, t);
+			frame->addView (new FtLabel (
+			    CRect (right - kToggleSize - 62, kOutputKnobTop + 9,
+			           right - kToggleSize - 6, kOutputKnobTop + 21),
+			    "Ladder", kRightText));
+		}
 
 		frame->addView (new FtTextButton (
 		    CRect (kEnvPanelX, kLfoButtonTop,
@@ -438,6 +453,15 @@ std::string ForTranEditor::readoutTextFor (ParamID tag) const
 				char time[16] = {};
 				formatEnvelopeTime (seconds, time, sizeof (time));
 				std::snprintf (buf, sizeof (buf), "%s: %s", def.title, time);
+				break;
+			}
+
+			// The ladder switch says what it does rather than On/Off: the
+			// bypass is level-matched, so "out" is not "quieter".
+			if (tag == kLadderEnable)
+			{
+				std::snprintf (buf, sizeof (buf), "%s: %s", def.title,
+				               (inner >= 0.5) ? "in" : "bypassed");
 				break;
 			}
 

@@ -48,6 +48,10 @@ public:
 	    the usual two semitones, and deliberate. */
 	void setPitchWheel (double wheel);
 
+	/** The output ladder, in or out. Pushed to every sounding voice each
+	    block so it can be switched on a note that is already playing. */
+	void setLadderEnabled (bool enabled);
+
 	void noteOn (int noteNumber, int velocity);
 	void noteOff (int noteNumber);
 	void allNotesOff ();
@@ -85,6 +89,7 @@ private:
 	FilterInfo  mFilter;
 	VoiceParams mParams;
 	double      mSampleRate = 44100.0;
+	bool        mLadderEnabled = true;
 	int         mChannelVolume = 127;
 	int         mPan = 64;
 	double      mBendFactor = 1.0;

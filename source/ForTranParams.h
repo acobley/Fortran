@@ -260,6 +260,12 @@ enum Param : Steinberg::Vst::ParamID
 	    the ids before it never move. See the note below on why it exists. */
 	kOutputLevel,
 
+	/** Switches the output ladder in and out. Not from the DXi either - it
+	    is there because the ladder turns out to be doing very little for
+	    most of the keyboard, and the only way to judge that is to hear it
+	    both ways. See the note below. */
+	kLadderEnable,
+
 	kNumParams,
 
 	kBypass = 1000,         // standard VST3 bypass (kIsBypass)

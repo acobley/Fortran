@@ -1516,6 +1516,82 @@ each note starts from zero state instead of inheriting the previous note's
 decay. `tests/VoiceTests.cpp` asserts two voices sum linearly, which is what
 catches any accidental sharing.
 
+### What the ladder actually does, and the switch
+
+Measured, because "Moog ladder" sets an expectation the code does not meet:
+
+| | |
+|---|---|
+| gain at DC | **3.39, +10.6 dB, flat** |
+| −3 dB corner | **0.198 × Nyquist** |
+| resonance | **+0.22 dB** |
+| slope | 24 dB/octave |
+
+That corner is 4372 Hz at 44.1 kHz, 4759 Hz at 48 kHz, 9518 Hz at 96 kHz.
+
+**It is barely a ladder.** 0.22 dB is not resonance. The feedback path is
+there, but the feed-forward `0.35013·f⁴` is scaled so the four sections have
+a DC gain of exactly 1 — `ff × (1.3/f)⁴ = 1.00005`, too precise to be
+chance — and what is left is a plain four-pole low pass.
+
+**And the instrument has only ten partials.** So whether it filters anything
+depends entirely on the note. Attenuation of each partial at 48 kHz,
+relative to the flat band, and reproduced independently by `VoiceTests`
+check 11 through the real `Voice`:
+
+| note | worst of the ten partials |
+|---|---|
+| C2, 65 Hz | 0.06 dB |
+| A3, 220 Hz | 0.24 dB |
+| A4, 440 Hz | 1.97 dB |
+| C6, 1047 Hz | **21.44 dB** |
+
+The tenth partial only reaches the corner when `10·f0 = 4759`, so **below
+about B4 the ladder is a +10.6 dB gain stage and nothing else.**
+
+**Two consequences worth recording.** It is half of the level problem the
+output trim exists for — 10.6 dB of fixed gain immediately after the `×0.25`
+the original's comment calls headroom. And **the corner moves with the
+sample rate**: the coefficients are plain constants, never scaled, so the
+same patch on the same note is more than an octave brighter at 96 kHz than
+at 44.1 kHz. That one is a defect rather than a quirk, and it is not fixed.
+
+### The ladder switch
+
+`kLadderEnable`, appended last, **defaults IN** — the DXi's path is what you
+get unless you take it out.
+
+**Pushed every block, not latched at note-on**, unlike almost everything
+else in this synth. The point of the switch is to throw it on a note that is
+already sounding; a filter that does nothing below B4 cannot be judged any
+other way. `VoiceTests` asserts that a sounding note at 1047 Hz changes when
+the switch is thrown.
+
+**The bypass is level-matched.** The ladder is a filter *and* a fixed
++10.6 dB, and an A/B where one side is ten decibels louder tells you nothing
+about the filtering. With it out the same DC gain is applied as a plain
+multiply, so the only thing that changes is what the four poles were doing.
+`kLadderDcGain` is derived from the same three constants as the filter —
+
+```cpp
+5.0 * G / (1.0 + kLadderFb * G),   G = kLadderFf * pow (1.3 / kLadderF, 4)
+```
+
+— rather than written down as the measured 3.39, so it cannot drift away
+from the filter it is matching.
+
+Bypass runs the delays down to zero rather than freezing them, so switching
+back in mid-note starts from silence rather than from whatever was left in
+them, which would be a click.
+
+**One thing the numbers do not say.** Four poles delay the signal even where
+their magnitude is flat, so ladder-in and level-matched bypass differ at
+every sample even on a bass note whose spectrum is identical either way -
+9 % by RMS at C2. That difference is a phase shift of the whole voice and is
+inaudible on its own, which is why check 11 compares **spectra** and not
+samples. The first version of that test compared samples and failed on a
+note the ladder provably does not touch.
+
 ### Fixed: three more divisions by zero
 
 The LFO steps are built by dividing by the control:

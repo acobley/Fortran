@@ -444,6 +444,103 @@ int main ()
 		chk(worst < 0.002, "the sweep is putting energy above the synth's own band - it is stepping");
 	}
 
+	// 11. The ladder switch, and the measurement that made it worth having.
+	//     The ladder is a fixed +10.6 dB with a corner at 0.198 x Nyquist -
+	//     4.76 kHz at 48 k - and the synth has only ten partials. So for any
+	//     note whose tenth partial stays under that corner, the ladder is
+	//     doing nothing but the gain, and a level-matched bypass must be
+	//     almost indistinguishable from it. Above the corner it must not be.
+	std::printf("11. the ladder switch\n");
+	{
+		const double sr = 48000.0;
+		FilterInfo f3;
+		if (f3.needsRecalculation()) f3.calculate();
+
+		auto renderNote = [&](double hz, bool ladder) {
+			VoiceParams p;
+			for (int i = 0; i < 10; ++i) { p.harmLevel[i] = 1.f - 0.07f*i;
+			                               p.harmPhase[i] = 0.5f; p.formantEnable[i] = false; }
+			p.envAttack = 0.f; p.envDecay = 0.f; p.envSustain = 1.f;
+			Voice v; v.noteOn(60, hz, 100, 127, 64, p, sr);
+			v.setLadderEnabled(ladder);
+			const int n = 8192;
+			std::vector<float> st((size_t)n*2, 0.f);
+			v.render(st.data(), n, f3);
+			std::vector<double> m((size_t)n);
+			for (int i = 0; i < n; ++i) m[(size_t)i] = 0.5*(st[2*(size_t)i]+st[2*(size_t)i+1]);
+			return m;
+		};
+		// Compared as SPECTRA, not sample by sample. Four poles delay the
+		// signal even where their magnitude is flat, so two runs with
+		// identical spectra still differ at every sample - a difference
+		// that is a phase shift of the whole voice and inaudible on its
+		// own. What "does the ladder do anything" means is what it does to
+		// the partials, so that is what is measured: the worst change in
+		// any of the ten, in decibels.
+		auto partialsDb = [&](const std::vector<double>& x, double f0) {
+			std::vector<double> mag(10);
+			const size_t from = x.size()/2, n = x.size() - from;
+			for (int k = 1; k <= 10; ++k)
+			{
+				const double w = 2.0*3.14159265358979323846*(k*f0)/sr;
+				double re = 0.0, im = 0.0;
+				for (size_t i = 0; i < n; ++i)
+				{ re += x[from+i]*std::cos(w*i); im += x[from+i]*std::sin(w*i); }
+				mag[(size_t)(k-1)] = std::sqrt(re*re + im*im) / (double)n;
+			}
+			return mag;
+		};
+		auto worstDb = [](const std::vector<double>& a, const std::vector<double>& b) {
+			double worst = 0.0;
+			for (size_t k = 0; k < a.size(); ++k)
+			{
+				if (a[k] < 1e-6 || b[k] < 1e-6) continue;
+				worst = std::fmax(worst, std::fabs(20.0*std::log10(a[k]/b[k])));
+			}
+			return worst;
+		};
+
+		struct Case { const char* name; double hz; };
+		const Case cases[] = { {"C2  65 Hz", 65.41}, {"A3 220 Hz", 220.0},
+		                       {"A4 440 Hz", 440.0}, {"C6 1047 Hz", 1046.5} };
+		double lowNote = -1.0, highNote = -1.0;
+		for (const Case& c : cases)
+		{
+			auto on  = renderNote(c.hz, true);
+			auto off = renderNote(c.hz, false);
+			double pOn = 0.0, pOff = 0.0;
+			for (size_t i = on.size()/2; i < on.size(); ++i)
+			{ pOn = std::fmax(pOn, std::fabs(on[i])); pOff = std::fmax(pOff, std::fabs(off[i])); }
+			const double diff = worstDb(partialsDb(on, c.hz), partialsDb(off, c.hz));
+			std::printf("   %-11s peak in %.3f, bypassed %.3f, worst partial %5.2f dB\n",
+			            c.name, pOn, pOff, diff);
+			if (c.hz < 100.0)  lowNote  = diff;
+			if (c.hz > 1000.0) highNote = diff;
+		}
+		chk(lowNote >= 0.0 && lowNote < 0.5,
+		    "a low note is not level-matched - every partial is below the corner, so bypass should barely change it");
+		chk(highNote > 6.0,
+		    "a high note sounds the same either way - the switch is not switching");
+
+		// And the switch must be live, not latched at note-on.
+		{
+			VoiceParams p;
+			for (int i = 0; i < 10; ++i) { p.harmLevel[i] = 1.f; p.harmPhase[i] = 0.5f;
+			                               p.formantEnable[i] = false; }
+			p.envAttack = 0.f; p.envDecay = 0.f; p.envSustain = 1.f;
+			Voice v; v.noteOn(84, 1046.5, 100, 127, 64, p, sr);
+			std::vector<float> st(4096*2, 0.f);
+			v.render(st.data(), 2048, f3);          // sounding, ladder in
+			v.setLadderEnabled(false);
+			v.render(st.data() + 2048*2, 2048, f3); // still sounding, ladder out
+			double before = 0.0, after = 0.0;
+			for (int i = 1024; i < 2048; ++i) before = std::fmax(before, std::fabs((double)st[2*i]));
+			for (int i = 3072; i < 4096; ++i) after  = std::fmax(after,  std::fabs((double)st[2*i]));
+			std::printf("   thrown mid-note at 1047 Hz: %.3f -> %.3f\n", before, after);
+			chk(after > before * 1.5, "the switch does nothing to a note that is already sounding");
+		}
+	}
+
 	std::printf(fails ? "\n%d CHECK(S) FAILED\n" : "\nall checks passed\n", fails);
 	return fails != 0;
 }

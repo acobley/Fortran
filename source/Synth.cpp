@@ -77,6 +77,14 @@ Voice* Synth::allocateVoice (int noteNumber)
 }
 
 //------------------------------------------------------------------------
+void Synth::setLadderEnabled (bool enabled)
+{
+	mLadderEnabled = enabled;
+	for (Voice& v : mVoices)
+		v.setLadderEnabled (enabled);
+}
+
+//------------------------------------------------------------------------
 void Synth::setChannelVolume (int volume)
 {
 	mChannelVolume = std::clamp (volume, 0, 127);
@@ -121,6 +129,7 @@ void Synth::noteOn (int noteNumber, int velocity)
 		v->noteOn (noteNumber, noteFrequency (noteNumber), velocity,
 		           mChannelVolume, mPan, mParams, mSampleRate);
 		v->setPitchBend (mBendFactor);
+		v->setLadderEnabled (mLadderEnabled);
 
 		// Two periods of this note, as the DXi sized its capture
 		// (WaveSampleLength = 2 * sampleRate / frequency, capped).

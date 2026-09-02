@@ -259,6 +259,10 @@ const ParamDef kParams[kNumParams] =
 	// The default is the knob's centre, -20 dB. See the note in the header:
 	// the DXi's own staging is the TOP of this control, not the default.
 	{ kOutputLevel,           "Output",              "%",  ParamType::Float,     0.0,  100.0,  50.00,   0.0,   1.0,  0, true  },
+
+	// Defaults ON, which is the DXi: the ladder is in the path unless it is
+	// deliberately taken out.
+	{ kLadderEnable,          "Ladder Filter",       "",   ParamType::Bool,      0.0,    1.0,    1.0,   0.0,   1.0,  1, false },
 };
 
 //------------------------------------------------------------------------
