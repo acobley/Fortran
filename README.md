@@ -176,3 +176,16 @@ Change any of these and every existing session loses the plug-in.
 
 `AECo` is the author and is shared with the other ports; only the subtype
 distinguishes them.
+
+---
+
+Copyright 2026 A. E. Cobley. Licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — see
+[`LICENSE`](LICENSE). Credit it, and share anything you build on it under the
+same terms.
+
+The Steinberg VST3 SDK, VSTGUI and Apple's AudioUnitSDK are not covered by
+that: they are fetched into `external/` at configure time and carry their own
+licence terms.
+
+VST is a trademark of Steinberg Media Technologies GmbH.
