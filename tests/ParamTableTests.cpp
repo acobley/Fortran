@@ -244,7 +244,7 @@ int main(){
 
         // They are not times and not phases, or they would be formatted as
         // such by the display code those predicates gate.
-        for (int i = kHarmLfoRate1; i <= kHarmLfoDepth10; ++i) {
+        for (int i = kHarmLfoRate1; i <= (int)kHarmLfoDepth10; ++i) {
             chk(envelopeTimeRole(kParams[i].id) == TimeRole::None, "an LFO control is treated as a time", i);
             chk(!isPhaseParam(kParams[i].id), "an LFO control is treated as a phase", i);
         }

@@ -140,13 +140,33 @@ c++ -std=c++17 -O2 -Wall -Wextra -I../source ../source/Adsr.cpp AdsrTests.cpp -o
 `ParamTableTests` needs the SDK headers on the include path; the rest need
 nothing.
 
+## Shipping it
+
+`installer/build-installer.sh` builds `installer/ForTran-<version>.pkg`, which
+installs the VST3 and the Audio Unit system-wide as two separately choosable
+components. macOS only — `pkgbuild`, `codesign` and `notarytool` are Apple's.
+
+```sh
+tools/run-tests.sh                              # every suite
+./setup-xcode.sh --no-open && cmake --build build --config Release
+installer/build-installer.sh                    # unsigned, this machine only
+```
+
+With no arguments the payload is ad-hoc signed and the package is not signed
+at all: fine locally, refused by Gatekeeper on anything downloaded. For real
+distribution both halves of a Developer ID and a notarisation are needed, and
+`installer/README.md` is the walkthrough. `installer/verify-install.sh` is the
+one to copy to a Mac that has **never had the build tree** — that is the only
+machine on which the Audio Unit's nested VST3 can be proved sound.
+
 ## Layout
 
 | | |
 |---|---|
 | `source/` | the plug-in — seven VST3 files plus `Adsr`, `FilterInfo`, `Voice`, `Synth` and the controls |
 | `resource/` | artwork, converted from the DXi's `.bmp`s, and `au-info.plist` |
-| `tools/` | the scripts that build the background and button artwork |
+| `tools/` | `run-tests.sh`, and the scripts that build the background and button artwork |
+| `installer/` | the signed, notarised `.pkg` build and its walkthrough |
 | `tests/` | standalone DSP tests |
 | `docs/` | the two signal-path diagrams |
 | `CMakeLists.txt` | the build, from `../vst3-port-template` — only the identity block is ForTran's |

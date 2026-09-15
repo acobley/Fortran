@@ -153,13 +153,20 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
 ## Phase 6 — Audio Unit and ship checks  ← CURRENT
 
 - [ ] 🧑 Build the `<PlugIn>-au` scheme (Xcode generator only)
-- [ ] 🧑 `auval -v aufx <subtype> <manufacturer>`
+- [ ] 🧑 `auval -v aumu FTrn AECo` — **`aumu`, not `aufx`**: this one is an
+      instrument, and `auval` simply will not find it under the effect type
 - [ ] 🧑 Validator against a **Release** build
 - [ ] 🧑 Test in a real host
-- [ ] 🧑 Before handing it to anyone: the installed `.component` holds a
-      **symlink into your build tree** — replace it with the real `.vst3`
-      bundle *(§9)*
-- [ ] 🧑 Real signing identity, if it is going further than this machine
+- [x] 🤖 `installer/` — the `.pkg` build, from `../Project6-VSTi/installer`
+- [ ] 🧑 `tools/run-tests.sh`, then a Release build, then
+      `installer/build-installer.sh` once, signed
+- [ ] 🧑 `strings -a build/VST3/Release/ForTran.vst3/Contents/MacOS/ForTran |
+      grep -c "$HOME"` — want 0, now that `-ffile-prefix-map` is in the build
+- [ ] 🧑 Run `installer/verify-install.sh` on a Mac that has **never had the
+      build tree** — the installed `.component` otherwise holds a symlink into
+      it, and the Audio Unit is dead everywhere else *(§9)*
+- [ ] 🧑 Real signing identity and notarisation, if it is going further than
+      this machine — `installer/README.md`
 
 ---
 
