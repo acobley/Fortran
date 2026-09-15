@@ -92,6 +92,63 @@ for tool in pkgbuild productbuild codesign; do
     }
 done
 
+#-----------------------------------------------------------------------------
+# THE IDENTITIES HAVE TO EXIST, AND THIS HAS TO BE CHECKED FIRST.
+#
+# codesign matches the string you give it as a LITERAL SUBSTRING of the
+# certificate's common name, so a single stray character - most often a
+# double space after "Application:", straight out of a copy and paste - makes
+# it report "no identity found", which reads exactly like a missing
+# certificate and sends you looking in Keychain Access for something that was
+# there all along.
+#
+# Checked here, before any staging or signing, and the message says what is
+# actually wrong. The SHA-1 hash from --list-identities is always accepted and
+# cannot be mistyped this way; a hash is passed straight through.
+#-----------------------------------------------------------------------------
+check_identity () {
+    label="$1"; wanted="$2"; available="$3"
+
+    # A 40-character hex hash is an identity in its own right - nothing to match.
+    case "$wanted" in
+        [0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])
+            return 0 ;;
+    esac
+
+    if printf '%s\n' "$available" | grep -Fq "$wanted"; then
+        return 0
+    fi
+
+    echo "build-installer: no $label identity matches" >&2
+    echo "    $wanted" >&2
+    echo >&2
+
+    # THE USUAL CULPRIT, NAMED. Collapsing runs of spaces on both sides turns
+    # "Application:  Andy" into "Application: Andy" - if THAT matches, the
+    # certificate is fine and the string is not.
+    squashed="$(printf '%s' "$wanted" | tr -s ' ')"
+    if printf '%s\n' "$available" | tr -s ' ' | grep -Fq "$squashed"; then
+        echo "It matches once runs of spaces are collapsed, so the certificate is" >&2
+        echo "there and the string is wrong - almost certainly a doubled space." >&2
+        echo "Use this instead, or pass the SHA-1 hash:" >&2
+        echo "    $squashed" >&2
+    else
+        echo "Available:" >&2
+        printf '%s\n' "$available" | sed 's/^/    /' >&2
+    fi
+    exit 1
+}
+
+if [ "$SIGN_APP" != "-" ]; then
+    check_identity "--sign-app" "$SIGN_APP" "$(security find-identity -v -p codesigning 2>/dev/null)"
+fi
+
+if [ -n "$SIGN_INSTALLER" ]; then
+    # NOT -p codesigning: a Developer ID Installer certificate is not a
+    # code-signing certificate and does not appear in that list at all.
+    check_identity "--sign-installer" "$SIGN_INSTALLER" "$(security find-identity -v 2>/dev/null | grep "Developer ID Installer")"
+fi
+
 BUILT="$ROOT/build/VST3/$CONFIG"
 VST3_SRC="$BUILT/$NAME.vst3"
 AU_SRC="$BUILT/$NAME.component"
