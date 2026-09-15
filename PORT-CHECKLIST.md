@@ -158,15 +158,20 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
 - [ ] 🧑 Validator against a **Release** build
 - [ ] 🧑 Test in a real host
 - [x] 🤖 `installer/` — the `.pkg` build, from `../Project6-VSTi/installer`
-- [ ] 🧑 `tools/run-tests.sh`, then a Release build, then
-      `installer/build-installer.sh` once, signed
+- [x] 🧑 `tools/run-tests.sh`, then a Release build, then
+      `installer/build-installer.sh` once, signed — Developer ID on both
+      halves, notarised through `project6-notary`, stapled, and `spctl`
+      accepts it as a notarised Developer ID package  ✅ 15 Sep
 - [ ] 🧑 `strings -a build/VST3/Release/ForTran.vst3/Contents/MacOS/ForTran |
       grep -c "$HOME"` — want 0, now that `-ffile-prefix-map` is in the build
 - [ ] 🧑 Run `installer/verify-install.sh` on a Mac that has **never had the
       build tree** — the installed `.component` otherwise holds a symlink into
       it, and the Audio Unit is dead everywhere else *(§9)*
-- [ ] 🧑 Real signing identity and notarisation, if it is going further than
-      this machine — `installer/README.md`
+- [x] 🧑 Real signing identity and notarisation, if it is going further than
+      this machine — `installer/README.md`  ✅ 15 Sep
+- [ ] 🧑 Publish: tag `v1.0.0.1` and a GitHub Release on `acobley/Fortran`
+      carrying the `.pkg`, its SHA-256 and
+      `installer/release-notes-1.0.0.1.md`
 
 ---
 

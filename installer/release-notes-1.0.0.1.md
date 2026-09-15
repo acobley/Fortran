@@ -54,7 +54,7 @@ sudo rm -rf /Library/Audio/Plug-Ins/Components/ForTran.component
 ## Checksum
 
 ```
-<paste the output of: shasum -a 256 installer/ForTran-1.0.0.1.pkg>
+d7d4c5bd7e271d52cd85ad403efb21fbdc64933e602de8490dec2bf4ced65b9d  ForTran-1.0.0.1.pkg
 ```
 
 ---
