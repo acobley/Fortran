@@ -82,18 +82,26 @@ public:
 	static const int kEnvPanelTop    = 6;
 	static const int kEnvPanelGap    = 14;
 
-	/** The band below the envelope panels: three controls in a row with
+	/** The band below the envelope panels: four controls in a row with
 	    their names underneath, then the button that summons the LFO panel.
-	    Labels go under rather than beside, because three of them side by
+	    Labels go under rather than beside, because four of them side by
 	    side will not fit across 200 px any other way. */
 	static const int kStripRowTop    = 346;   // knobs
 	static const int kStripLabelTop  = 377;   // their names
 	static const int kLfoButtonTop   = 390;
 
-	/** Centres of the three, across the 200 px strip. */
-	static const int kStripCol1      = 885;   // output
-	static const int kStripCol2      = 952;   // pan
-	static const int kStripCol3      = 1019;  // ladder
+	/** Centres of the four, evenly across the 200 px strip: 852 + 200(i+½)/4.
+	    Portamento made this a fourth column; at 50 px apart the labels have
+	    to be narrower than they were, which is why the glide one reads
+	    "Glide" rather than its full name. The readout says the full name. */
+	static const int kStripCol1      = 877;   // output
+	static const int kStripCol2      = 927;   // pan
+	static const int kStripCol3      = 977;   // portamento
+	static const int kStripCol4      = 1027;  // ladder
+
+	/** Half-width of a label box under the strip. 24, not 33, since there
+	    are four of them now. */
+	static const int kStripLabelHalf = 24;
 
 	/** The harmonic LFO panel. Ten columns on the same 30 px pitch the
 	    harmonic sliders use, two rows of knobs, centred over the window. */

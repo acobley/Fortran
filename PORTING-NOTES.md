@@ -1770,6 +1770,62 @@ bottom. The knob sits under the three envelope displays; making room meant
 tightening the panel spacing from 24/24 to 6/14, so they now end at y 340
 instead of 378.
 
+### Portamento, and what "polyphonic glide" has to decide
+
+**Not from the DXi**, which had no glide anywhere - and could not have had
+one in the form this takes, because a DXi never owned its voices
+(`Synth`, below): there was no note-to-note state to glide with.
+`kPortamento` is appended after `kPan`, so no existing id moves, and it
+defaults to **zero, which is off** - a project saved before it existed
+loads and sounds exactly as it did.
+
+**The glide itself is one multiply per sample.** Constant time and
+exponential in pitch together mean the phase step is scaled by a fixed
+ratio each sample:
+
+    ratio = (target / start) ^ (1 / n),    n = seconds * sampleRate
+
+so every glide takes the same time whatever the interval, and equal times
+are equal *semitones* rather than equal hertz. A glide linear in hertz
+spends most of itself at the top of the interval and arrives with a lurch;
+`VoiceTests` check 13 pins the difference by measuring the pitch half way
+through an octave glide and finding the geometric mean (311 Hz) rather than
+the arithmetic one (330 Hz). The step is **snapped to the target** on the
+last sample rather than left wherever the multiplies landed, so a long
+glide cannot end a cent flat.
+
+The control is squared, as `Adsr` squares its times and for the same
+reason: the centre of the knob is 500 ms of the two-second maximum, which
+leaves the short glides that are actually playable most of the travel.
+
+**The decision that is not about DSP at all: where does a new note glide
+FROM?** Monophonically the question does not arise. Polyphonically it has
+to be answered, and the answer is audible:
+
+| | |
+|---|---|
+| Last note played | four notes of a chord all fan out of one pitch |
+| The voice it reuses | which voice gets stolen is an allocation detail, so the same chord change glides differently each time |
+| **Nearest previous pitch, used once each** | a chord change moves in parallel - C-E-G to D-F-A is three glides of a tone |
+
+The third is what this does. `chooseGlideSource` in `Synth.h` is a pure
+function so it can be tested as one, and `SynthTests` check 10 asserts the
+parallel-voice-leading case and the one-to-one pairing (without which all
+three notes would find the same nearest pitch and fan out after all).
+
+**The pitches are snapshotted, not read live.** By the time the second note
+of a chord arrives the first is already sounding and would be the nearest
+thing to glide from - every chord would glide from itself. So the first
+note of a chord takes a snapshot of what is sounding, and the rest of the
+chord pairs off against that same snapshot. "The rest of the chord" is
+anything arriving within **30 ms**; wider apart than that and it is a
+played line, where a fresh snapshot gives each note the one before it,
+which is what a line should do.
+
+A note struck into silence has nothing to glide from and starts on pitch,
+and `allNotesOff` clears the memory, so a panic does not leave the next
+note sliding in from the last thing that was playing.
+
 ### What the tests check
 
 The voice is too large to diff against a transcription the way `Adsr` and

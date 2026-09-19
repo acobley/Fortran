@@ -281,13 +281,14 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 	// The button that summons the harmonic LFO panel, in the space below the
 	// third envelope display. Nowhere on the DXi's own artwork has room.
 	{
-		// Three controls in a row under the envelope panels, each with its
-		// name beneath it: the output trim, pan, and the ladder switch.
-		// None of them has a place on the DXi's own artwork - the original
-		// had no output control and no pan control at all.
+		// Four controls in a row under the envelope panels, each with its
+		// name beneath it: the output trim, pan, portamento, and the ladder
+		// switch. None of them has a place on the DXi's own artwork - the
+		// original had no output control, no pan control and no glide.
 		auto label = [this] (int centre, const char* text) {
 			frame->addView (new FtLabel (
-			    CRect (centre - 33, kStripLabelTop, centre + 33, kStripLabelTop + 12),
+			    CRect (centre - kStripLabelHalf, kStripLabelTop,
+			           centre + kStripLabelHalf, kStripLabelTop + 12),
 			    text, kCenterText));
 		};
 
@@ -303,17 +304,26 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 		           frame);
 		label (kStripCol2, "Pan");
 
+		// Labelled "Glide" because "Portamento" does not fit in 48 px; the
+		// parameter, the host's automation lane and the hover readout all
+		// call it Portamento.
+		addKnobAt (kPortamento,
+		           CRect (kStripCol3 - kKnobSize / 2, kStripRowTop,
+		                  kStripCol3 - kKnobSize / 2 + kKnobSize, kStripRowTop + kKnobSize),
+		           frame);
+		label (kStripCol3, "Glide");
+
 		// Green is on, as everywhere. Centred on the knobs' own centre line.
 		{
 			const CCoord top = kStripRowTop + (kKnobSize - kToggleSize) / 2;
 			auto* t = new FtToggle (
-			    CRect (kStripCol3 - kToggleSize / 2, top,
-			           kStripCol3 - kToggleSize / 2 + kToggleSize, top + kToggleSize),
+			    CRect (kStripCol4 - kToggleSize / 2, top,
+			           kStripCol4 - kToggleSize / 2 + kToggleSize, top + kToggleSize),
 			    this, static_cast<int32_t> (kLadderEnable),
 			    bitmap ("button_off.png"), bitmap ("button_on.png"));
 			registerControl (kLadderEnable, t);
 		}
-		label (kStripCol3, "Ladder");
+		label (kStripCol4, "Ladder");
 
 		frame->addView (new FtTextButton (
 		    CRect (kEnvPanelX, kLfoButtonTop,
@@ -460,6 +470,23 @@ std::string ForTranEditor::readoutTextFor (ParamID tag) const
 				char time[16] = {};
 				formatEnvelopeTime (seconds, time, sizeof (time));
 				std::snprintf (buf, sizeof (buf), "%s: %s", def.title, time);
+				break;
+			}
+
+			// Glide reads as a time, and "off" at zero. The label under
+			// the knob says Glide; the readout says Portamento, which is
+			// the parameter's name in the host.
+			if (tag == kPortamento)
+			{
+				const double seconds = portamentoSeconds (inner);
+				if (seconds <= 0.0)
+					std::snprintf (buf, sizeof (buf), "%s: off", def.title);
+				else
+				{
+					char time[16] = {};
+					formatEnvelopeTime (seconds, time, sizeof (time));
+					std::snprintf (buf, sizeof (buf), "%s: %s", def.title, time);
+				}
 				break;
 			}
 

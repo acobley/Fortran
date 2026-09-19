@@ -20,6 +20,26 @@
 namespace ForTran {
 
 //------------------------------------------------------------------------
+// Polyphonic portamento: which note does a new note glide FROM?
+//
+// On a monophonic synth the question does not arise - you came from the note
+// you were playing. Polyphonically it has to be decided, and the decision is
+// audible. This one pairs each new note with the NEAREST pitch of the chord
+// that was sounding when the current chord began, and uses each of those
+// pitches once, so a chord change glides as parallel voice leading: C-E-G to
+// D-F-A moves each finger by a tone, rather than three notes fanning out
+// from whichever pitch happened to be last.
+//
+// `used` is carried across the notes of one chord - that is what makes the
+// pairing one-to-one. When every remembered pitch has been taken (the new
+// chord has more notes than the old), the nearest is reused rather than the
+// extra notes arriving with no glide while their neighbours slide.
+//
+// Returns the chosen note number, or -1 if there is nothing to glide from -
+// which is a note struck into silence, and it starts on pitch.
+int chooseGlideSource (const int* pitches, bool* used, int count, int noteNumber);
+
+//------------------------------------------------------------------------
 class Synth
 {
 public:
@@ -51,6 +71,12 @@ public:
 	/** The output ladder, in or out. Pushed to every sounding voice each
 	    block so it can be switched on a note that is already playing. */
 	void setLadderEnabled (bool enabled);
+
+	/** Notes arriving within this of each other are one chord, and glide
+	    from the pitches that were sounding before that chord started. Wider
+	    apart than this and each note glides from the note before it, which
+	    is what a played line should do. */
+	static constexpr double kChordWindowSeconds = 0.03;
 
 	void noteOn (int noteNumber, int velocity);
 	void noteOff (int noteNumber);
@@ -105,6 +131,22 @@ private:
 	mutable std::atomic<unsigned> mCaptureSeq {0};
 	float mCapturePublished[kCaptureMax] = {};
 	int   mCapturePublishedLength = 0;
+
+	// -- portamento bookkeeping -------------------------------------------
+	//
+	// The pitches sounding when the current chord began, and which of them
+	// the notes of that chord have already taken. Snapshotted rather than
+	// read live, because by the time the second note of a chord arrives the
+	// first one is sounding too and would be the nearest thing to glide
+	// from - every chord would glide from itself.
+	int  mGlidePitches[kMaxVoices] = {};
+	bool mGlideTaken[kMaxVoices]   = {};
+	int  mGlideCount = 0;
+
+	// A sample clock, only ever used to tell one chord from the next.
+	long mSampleClock     = 0;
+	long mLastNoteOnClock = 0;
+	bool mHadNoteOn       = false;
 
 	void captureBlock (const float* stereo, int numSamples);
 

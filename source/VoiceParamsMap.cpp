@@ -59,6 +59,10 @@ void buildVoiceParams (const double* normalized, VoiceParams& out)
 	out.tremoloRate  = v (kTremoloRate);
 	out.tremoloDepth = v (kTremoloDepth);
 
+	// Seconds, not the raw control: portamentoSeconds is the one definition
+	// of the law, and the panel's readout goes through it too.
+	out.portamento = static_cast<float> (portamentoSeconds (internalOf (normalized, kPortamento)));
+
 	out.shapes.lowPass  = static_cast<int> (internalOf (normalized, kLowPassState));
 	out.shapes.highPass = static_cast<int> (internalOf (normalized, kHighPassState));
 	out.shapes.comb     = static_cast<int> (internalOf (normalized, kCombState));

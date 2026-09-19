@@ -68,6 +68,7 @@ int main ()
         { "formantAttack1", kFormantAttack1 }, { "formantEnv1", kFormantEnv1 },
         { "formantInv1", kFormantInv1 },
         { "outputLevel", kOutputLevel }, { "pan", kPan }, { "ladderEnable", kLadderEnable },
+        { "portamento", kPortamento },
     };
     for (std::size_t i = 0; i < sizeof (kIds) / sizeof (kIds[0]); ++i)
         std::printf ("%s\"%s\": %d", i ? ", " : "", kIds[i].name, (int) kIds[i].id);

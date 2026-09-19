@@ -599,6 +599,99 @@ int main ()
 		chk(worstPeak <= hardPeak * 1.001, "some pan position peaks above hard-panned - the renormalisation is wrong");
 	}
 
+	// -- 13. portamento ---------------------------------------------------
+	//
+	// Not from the DXi, which had no glide at all. Three things have to be
+	// true: off is off, the glide arrives, and it is even in SEMITONES
+	// rather than in hertz.
+	{
+		std::printf("13. portamento\n");
+		const double sr = 48000.0;
+		FilterInfo fi; fi.calculate();
+		VoiceParams p = defaultParams();
+
+		// (a) OFF IS THE OLD CODE. Same note, one told where to glide from
+		// and one not, with the time at zero: every sample must match.
+		{
+			VoiceParams q = p;
+			q.portamento = 0.f;
+			Voice a; a.noteOn(69, 440.0, 100, 127, 64, q, sr, 220.0);
+			Voice b; b.noteOn(69, 440.0, 100, 127, 64, q, sr);
+			std::vector<float> sa(4096*2, 0.f), sb(4096*2, 0.f);
+			a.render(sa.data(), 4096, fi);
+			b.render(sb.data(), 4096, fi);
+			double worst = 0.0;
+			for (size_t i = 0; i < sa.size(); ++i)
+				worst = std::fmax(worst, std::fabs((double)sa[i] - (double)sb[i]));
+			std::printf("   portamento 0, glide source ignored: worst sample difference %g\n", worst);
+            chk(worst == 0.0, "portamento zero is not bit-identical to no glide");
+		}
+
+		// (b) and (c). An octave, 220 -> 440, over a quarter of a second.
+		// Measured as spectra rather than as samples: what matters is the
+		// pitch at each moment, not the waveform that carries it.
+		{
+			VoiceParams q = p;
+			q.portamento = 0.25f;
+			for (int i = 1; i < 10; ++i) q.harmLevel[i] = 0.f;   // fundamental only
+			Voice v; v.noteOn(57, 440.0, 100, 127, 64, q, sr, 220.0);
+
+			const int total = (int)(0.6 * sr);
+			std::vector<float> st((size_t)total * 2, 0.f);
+			v.render(st.data(), total, fi);
+
+			auto window = [&](int from, int len) {
+				std::vector<float> mono((size_t)len);
+				for (int i = 0; i < len; ++i) mono[(size_t)i] = st[(size_t)(from + i) * 2];
+				return mono;
+			};
+
+			// At the start it is playing the note it came from.
+			const std::vector<float> first = window((int)(0.005 * sr), 2048);
+            const double at220 = bandMagnitude(first, 220.0, sr);
+            const double at440 = bandMagnitude(first, 440.0, sr);
+			std::printf("   first 43 ms:  220 Hz %.4f   440 Hz %.4f\n", at220, at440);
+			chk(at220 > at440 * 4.0, "the glide does not start at the pitch it came from");
+
+			// Half way through it is at the geometric mean - a tritone, 311 Hz
+			// - and NOT at the arithmetic mean of 330, which is what a glide
+			// that was linear in hertz would give.
+			const std::vector<float> mid = window((int)(0.125 * sr) - 512, 1024);
+			const double at311 = bandMagnitude(mid, 311.13, sr);
+			const double at330 = bandMagnitude(mid, 330.0, sr);
+			std::printf("   at half time: 311 Hz (even in semitones) %.4f   330 Hz (linear in Hz) %.4f\n",
+			            at311, at330);
+			chk(at311 > at330, "the glide is linear in hertz, not in semitones");
+
+			// And after it, the note it was asked for.
+			const std::vector<float> last = window(total - 2048, 2048);
+			const double end220 = bandMagnitude(last, 220.0, sr);
+			const double end440 = bandMagnitude(last, 440.0, sr);
+			std::printf("   after 0.25 s: 220 Hz %.4f   440 Hz %.4f\n", end220, end440);
+			chk(end440 > end220 * 4.0, "the glide does not arrive on the target pitch");
+		}
+
+		// (d) Two voices glide independently - the whole point of doing this
+		// per voice rather than on one shared pitch.
+		{
+			VoiceParams q = p;
+			q.portamento = 0.2f;
+			for (int i = 1; i < 10; ++i) q.harmLevel[i] = 0.f;
+			Voice a; a.noteOn(60, 261.63, 100, 127, 64, q, sr, 246.94);   // B3 -> C4
+			Voice b; b.noteOn(67, 392.00, 100, 127, 64, q, sr, 415.30);   // G#4 -> G4
+			const int n = 1024;
+			std::vector<float> st((size_t)n * 2, 0.f);
+			a.render(st.data(), n, fi);
+			b.render(st.data(), n, fi);
+			std::vector<float> mono((size_t)n);
+			for (int i = 0; i < n; ++i) mono[(size_t)i] = st[(size_t)i * 2];
+			const double up = bandMagnitude(mono, 246.94, sr);
+			const double down = bandMagnitude(mono, 415.30, sr);
+			std::printf("   two voices at once: 247 Hz %.4f   415 Hz %.4f (both should sound)\n", up, down);
+			chk(up > 0.01 && down > 0.01, "the two voices are not gliding independently");
+		}
+	}
+
 	std::printf(fails ? "\n%d CHECK(S) FAILED\n" : "\nall checks passed\n", fails);
 	return fails != 0;
 }

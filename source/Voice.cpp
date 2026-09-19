@@ -60,7 +60,8 @@ inline double lfoStep (double rateSeconds, double sampleRate)
 //------------------------------------------------------------------------
 void Voice::noteOn (int noteNumber, double frequency, int velocity,
                     int channelVolume, int pan,
-                    const VoiceParams& params, double sampleRate)
+                    const VoiceParams& params, double sampleRate,
+                    double glideFromHz)
 {
 	mActive        = true;
 	mReleased      = false;
@@ -69,6 +70,31 @@ void Voice::noteOn (int noteNumber, double frequency, int velocity,
 
 	mTheta = 0.0;
 	mStep  = d2PI * frequency / sampleRate;
+
+	// -- portamento --------------------------------------------------------
+	//
+	// A glide needs somewhere to come from, a time, and the two pitches to
+	// differ; any of those missing and this is the note starting on pitch,
+	// which is what the plug-in did before the control existed.
+	mStepTarget     = mStep;
+	mGlideRatio     = 1.0;
+	mGlideRemaining = 0;
+
+	if (params.portamento > 0.f && glideFromHz > 0.0 && frequency > 0.0
+	    && glideFromHz != frequency)
+	{
+		const double samples = static_cast<double> (params.portamento) * sampleRate;
+		const long   n       = static_cast<long> (samples + 0.5);
+		if (n > 0)
+		{
+			mStep           = d2PI * glideFromHz / sampleRate;
+			mGlideRemaining = n;
+			// The ratio that gets from here to there in exactly n steps.
+			// Equal ratios per sample is equal SEMITONES per sample, which
+			// is why an octave down sweeps as evenly as an octave up.
+			mGlideRatio     = std::pow (frequency / glideFromHz, 1.0 / static_cast<double> (n));
+		}
+	}
 
 	// -- LFOs ------------------------------------------------------------
 	mLfoThetaVibrato = 0.0;
@@ -330,6 +356,18 @@ float Voice::renderSample (const FilterInfo& filter)
 	// each block, so the wheel bends notes that are already sounding.
 	mTheta += (mStep * mBendFactor + vibrato);
 	++mCurrentSample;
+
+	// The glide, AFTER the sample it produced: the first sample of a note
+	// sounds at the pitch it is gliding from, which is the whole point.
+	// The bend multiplies whatever the glide has reached, so bending
+	// mid-glide does what you would expect of both.
+	if (mGlideRemaining > 0)
+	{
+		if (--mGlideRemaining == 0)
+			mStep = mStepTarget;
+		else
+			mStep *= mGlideRatio;
+	}
 
 	// The DXi had no guard here at all. Feedback is fixed and the envelopes
 	// are bounded, so this should never fire - but a NaN reaching the host

@@ -21,7 +21,7 @@ int main(){
     printf("parameters: %d\n", (int)kNumParams);
     // 122 from the DXi's own Parameters.h, plus the 20 harmonic LFO controls
     // appended after them. The split is asserted below, where it matters.
-    chk(kNumParams==145,"count is not 122 DXi + 20 LFO + trim + ladder + pan",0);
+    chk(kNumParams==146,"count is not 122 DXi + 20 LFO + trim + ladder + pan + glide",0);
     for(int i=0;i<(int)kNumParams;++i){
         const ParamDef&d=kParams[i];
         chk(d.id==(Steinberg::Vst::ParamID)i,"id does not match its index",i);
@@ -208,7 +208,7 @@ int main(){
     {
         printf("harmonic LFO: ids %d..%d and %d..%d, of %d\n",
                kHarmLfoRate1, kHarmLfoRate10, kHarmLfoDepth1, kHarmLfoDepth10, (int)kNumParams);
-        chk(kNumParams == 145, "the table is not 122 DXi + 20 LFO + trim + ladder + pan", 0);
+        chk(kNumParams == 146, "the table is not 122 DXi + 20 LFO + trim + ladder + pan + glide", 0);
 
         // Every DXi parameter must still be where it was.
         chk(kEnable == 0, "kEnable moved", 0);
@@ -218,7 +218,8 @@ int main(){
         chk(kOutputLevel == kHarmLfoDepth10 + 1, "the output trim is not after the LFO block", 0);
         chk(kLadderEnable == kOutputLevel + 1, "the ladder switch is not after the trim", 0);
         chk(kPan == kLadderEnable + 1, "pan is not after the ladder switch", 0);
-        chk(kPan == (int)kNumParams - 1, "pan is not last", 0);
+        chk(kPortamento == kPan + 1, "the glide control is not after pan", 0);
+        chk(kPortamento == (int)kNumParams - 1, "the glide control is not last", 0);
         chk(kParams[kLadderEnable].plainDefault == 1.0,
             "the ladder does not default to IN - that would change the DXi's sound", kLadderEnable);
 
@@ -311,6 +312,37 @@ int main(){
         formatPan(1.0, where, sizeof where);
         printf(", 100%% = \"%s\"\n", where);
         chk(std::string(where) == "R 100", "hard right does not read as R 100", kPan);
+    }
+
+    // -- portamento -------------------------------------------------------
+    // Appended after pan, so nothing before it moved; off by default, so a
+    // project saved before it existed sounds the same after loading.
+    {
+        chk(kPortamento == (int)kNumParams - 1, "portamento is not the last parameter", 0);
+        chk(kPan == (int)kPortamento - 1, "portamento was not appended after pan", 0);
+        chk(kParams[kPortamento].plainDefault == 0.0, "portamento does not default to off", kPortamento);
+        chk(portamentoSeconds(0.0) == 0.0, "portamento at zero is not off", kPortamento);
+
+        printf("glide: 0%%=%s  25%%=%.3f s  50%%=%.3f s  100%%=%.3f s\n",
+               portamentoSeconds(0.0) == 0.0 ? "off" : "NOT OFF",
+               portamentoSeconds(0.25), portamentoSeconds(0.5), portamentoSeconds(1.0));
+
+        // Squared, as Adsr squares its times: the centre is a quarter of
+        // the range, and the top is the whole of it.
+        chk(std::fabs(portamentoSeconds(0.5) - 0.25 * kPortamentoMaxSeconds) < 1e-12,
+            "the glide law is not squared", kPortamento);
+        chk(std::fabs(portamentoSeconds(1.0) - kPortamentoMaxSeconds) < 1e-12,
+            "the top of the glide knob is not the maximum", kPortamento);
+
+        // Round trip, since the host and the panel both read it as a time.
+        double worst = 0.0;
+        for (int i = 0; i <= 100; ++i)
+        {
+            const double c = i / 100.0;
+            worst = std::fmax(worst, std::fabs(portamentoControlFromSeconds(portamentoSeconds(c)) - c));
+        }
+        printf("glide round trip through seconds: worst error %.3g\n", worst);
+        chk(worst < 1e-9, "the glide time does not round-trip", kPortamento);
     }
 
     printf("kEnable default = %.0f (DXi shipped this ON)\n", kParams[kEnable].plainDefault);

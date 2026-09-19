@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 
 using namespace Steinberg;
@@ -85,6 +86,19 @@ public:
 				std::snprintf (text, sizeof (text), "off");
 			else
 				std::snprintf (text, sizeof (text), "%+.1f dB", outputDecibels (inner));
+			UString (string, str16BufferSize (String128)).assign (USTRING (text));
+			return;
+		}
+
+		// Glide reads as the time it is, and zero reads as off rather than
+		// as "0 %" - off is what it means and what almost every patch wants.
+		if (mDef.id == kPortamento)
+		{
+			const double seconds = portamentoSeconds (mDef.toInternal (normalized));
+			if (seconds <= 0.0)
+				std::snprintf (text, sizeof (text), "off");
+			else
+				formatEnvelopeTime (seconds, text, sizeof (text));
 			UString (string, str16BufferSize (String128)).assign (USTRING (text));
 			return;
 		}
@@ -167,6 +181,24 @@ public:
 			if (end == text)
 				return false;
 			normalized = phaseToInternal (degrees);
+			return true;
+		}
+
+		// "300 ms" typed into a glide lane means 300 ms, the same as it does
+		// in an envelope lane. "off" is how it reads at zero, so take it.
+		if (mDef.id == kPortamento)
+		{
+			char text[64] = {};
+			UString (const_cast<TChar*> (string), tstrlen (string)).toAscii (text, sizeof (text));
+			if (std::strncmp (text, "off", 3) == 0 || std::strncmp (text, "Off", 3) == 0)
+			{
+				normalized = 0.0;
+				return true;
+			}
+			double seconds = 0.0;
+			if (!parseEnvelopeTime (text, seconds))
+				return false;
+			normalized = portamentoControlFromSeconds (seconds);
 			return true;
 		}
 

@@ -266,6 +266,12 @@ const ParamDef kParams[kNumParams] =
 
 	// Centred, so it offsets CC10 by nothing until it is moved.
 	{ kPan,                   "Pan",                 "",   ParamType::Float,     0.0,  100.0,  50.00,   0.0,   1.0,  0, true  },
+
+	// Zero, which is off: a patch saved before this existed loads with no
+	// glide, and so does one saved after it by anyone who never touched the
+	// knob. Not smoothed - it is latched at note-on like every other thing
+	// a voice reads, and smoothing a time would mean nothing anyway.
+	{ kPortamento,            "Portamento",          "%",  ParamType::Float,     0.0,  100.0,   0.00,   0.0,   1.0,  0, false },
 };
 
 //------------------------------------------------------------------------
@@ -442,6 +448,29 @@ double outputControlFromDb (double db)
 {
 	const double c = 1.0 + db / kOutputRangeDb;
 	return (c > 0.0) ? ((c < 1.0) ? c : 1.0) : 0.0;
+}
+
+//------------------------------------------------------------------------
+// Squared, as Adsr squares its envelope times and for the same reason: a
+// linear knob spends most of its travel on glides too long to play with.
+// The square puts the centre at a quarter of the maximum - 500 ms of the
+// two seconds - and leaves the bottom of the travel usable.
+//------------------------------------------------------------------------
+double portamentoSeconds (double control)
+{
+	if (!(control > 0.0))
+		return 0.0;                       // exactly zero is off
+	const double c = (control < 1.0) ? control : 1.0;
+	return c * c * kPortamentoMaxSeconds;
+}
+
+//------------------------------------------------------------------------
+double portamentoControlFromSeconds (double seconds)
+{
+	if (!(seconds > 0.0))
+		return 0.0;
+	const double c = std::sqrt (seconds / kPortamentoMaxSeconds);
+	return (c < 1.0) ? c : 1.0;
 }
 
 //------------------------------------------------------------------------

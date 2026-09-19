@@ -89,6 +89,13 @@ struct VoiceParams
 	float vibratoRate = 0.2f, vibratoDepth = 0.f;
 	float tremoloRate = 0.2f, tremoloDepth = 0.f;
 
+	/** Glide time in SECONDS, already through portamentoSeconds(). Zero is
+	    off, and off costs nothing: the voice takes the no-glide path and
+	    is sample-identical to one built before this existed. Latched at
+	    note-on like everything else here, so changing the knob does not
+	    retime a glide already under way. */
+	float portamento = 0.f;
+
 	/** The per-harmonic amplitude LFO. Rate is the 0..1 control that
 	    harmonicLfoHz() turns into a frequency; depth 0 means off, and off is
 	    free - Voice skips the term entirely. */
@@ -128,10 +135,17 @@ public:
 	static constexpr float kFilterSweepBins = 276.f;   // the DXi's 551
 
 	/** Start a note. `frequency` is in Hz, `velocity` and `channelVolume`
-	    are 0..127, `pan` is 0..127 with 64 centred. */
+	    are 0..127, `pan` is 0..127 with 64 centred.
+
+	    `glideFromHz` is where the pitch starts, for portamento - the note
+	    the player is coming FROM, which on a polyphonic synth is a
+	    question Synth answers (see chooseGlideSource). Zero, or the target
+	    itself, or a zero `params.portamento`, all mean no glide and the
+	    note simply starts on pitch. */
 	void noteOn (int noteNumber, double frequency, int velocity,
 	             int channelVolume, int pan,
-	             const VoiceParams& params, double sampleRate);
+	             const VoiceParams& params, double sampleRate,
+	             double glideFromHz = 0.0);
 
 	void noteOff ();
 
@@ -176,6 +190,21 @@ private:
 
 	double mTheta = 0.0;
 	double mStep  = 0.0;
+
+	// -- portamento --------------------------------------------------------
+	//
+	// Constant time and exponential in pitch, which together mean one
+	// multiply per sample: the step is scaled by a fixed ratio, so equal
+	// times give equal intervals and the whole glide takes mGlideRemaining
+	// samples whatever the distance. The step is SNAPPED to the target on
+	// the last sample rather than left wherever the multiplies landed, so
+	// a long glide cannot end a cent flat.
+	//
+	// Zero portamento leaves mGlideRemaining at 0 and the advance skips the
+	// branch entirely - the no-glide path is the old code exactly.
+	long   mGlideRemaining = 0;
+	double mGlideRatio     = 1.0;
+	double mStepTarget     = 0.0;
 
 	double mLfoThetaVibrato = 0.0, mLfoStepVibrato = 0.0, mLfoDepthVibrato = 0.0;
 	double mLfoThetaTremolo = 0.0, mLfoStepTremolo = 0.0, mLfoDepthTremolo = 0.0;

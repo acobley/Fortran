@@ -257,6 +257,98 @@ int main ()
 		chk(ns <= 32, "readWaveform overran the buffer it was given");
 	}
 
+	// -- polyphonic portamento: the pairing --------------------------------
+	//
+	// The decision this rule exists to make: a new chord's notes glide from
+	// the NEAREST pitch of the old one, each old pitch used once, so the
+	// chord change moves in parallel instead of fanning out of one note.
+	// The rule is a pure function, so it is checked as one.
+	{
+		std::printf("\n10. polyphonic portamento - which note does each glide come from\n");
+
+		// One chord's worth of pairing: `taken` is carried across the notes,
+		// which is what makes each previous pitch go to exactly one of them.
+		auto pair = [] (const std::vector<int>& before, const std::vector<int>& now) {
+			bool taken[Synth::kMaxVoices] = {};
+			std::vector<int> from;
+			for (int n : now)
+				from.push_back(chooseGlideSource(before.data(), taken, (int)before.size(), n));
+			return from;
+		};
+
+		// Nothing sounding: a note struck into silence starts on pitch.
+		chk(chooseGlideSource(nullptr, nullptr, 0, 60) == -1,
+		    "a note into silence found something to glide from");
+
+		// C major to D minor: each finger moves by a tone, and the glide
+		// should follow the fingers.
+		{
+			const std::vector<int> got = pair({60, 64, 67}, {62, 65, 69});
+			std::printf("   C-E-G -> D-F-A glides from %d, %d, %d (want 60, 64, 67)\n",
+			            got[0], got[1], got[2]);
+			chk(got == std::vector<int>({60, 64, 67}),
+			    "the chord change does not glide as parallel voice leading");
+		}
+
+		// Each old pitch is used ONCE. Without that, all three of these
+		// would glide from 60 - the fan this rule exists to avoid.
+		{
+			const std::vector<int> got = pair({60, 61, 62}, {60, 61, 62});
+			chk(got == std::vector<int>({60, 61, 62}),
+			    "one previous pitch was handed to more than one new note");
+		}
+
+		// A bigger chord than the one before it: the extra note reuses the
+		// nearest rather than being the only one that does not glide.
+		{
+			const std::vector<int> got = pair({60}, {60, 72});
+			std::printf("   one note -> two: glides from %d and %d\n", got[0], got[1]);
+			chk(got[0] == 60 && got[1] == 60, "an extra note was left without a glide source");
+		}
+	}
+
+	// -- and end to end, through the pool ----------------------------------
+	//
+	// Hold C4, then play G4 with a long glide: at the moment G4 starts it is
+	// sounding C4's pitch, so the mix has TWO voices near 262 Hz and nothing
+	// at 392 yet. That is the audible consequence of the pairing above.
+	{
+		std::printf("\n11. a held note is what the next one glides from\n");
+		Synth s;
+		s.setSampleRate(48000.0);
+		setDefaults(s);
+		for (int i = 1; i < 10; ++i) s.voiceParams().harmLevel[i] = 0.f;  // fundamental only
+		s.voiceParams().portamento = 0.5f;
+
+		std::vector<float> warm(4096 * 2, 0.f);
+		s.noteOn(60, 100);                       // C4, 261.6 Hz
+		s.render(warm.data(), 4096);
+
+		auto magnitude = [] (const std::vector<float>& st, int n, double f, double sr) {
+			double re = 0.0, im = 0.0;
+			for (int i = 0; i < n; ++i)
+			{
+				const double w = 2.0 * kPI * f * i / sr;
+				re += st[(size_t)i * 2] * std::cos(w);
+				im += st[(size_t)i * 2] * std::sin(w);
+			}
+			return std::sqrt(re * re + im * im) / n;
+		};
+
+		const double soloC = magnitude(warm, 4096, 261.63, 48000.0);
+
+		std::vector<float> both(2048 * 2, 0.f);
+		s.noteOn(67, 100);                       // G4, 392 Hz, gliding from C4
+		s.render(both.data(), 2048);
+		const double nowC = magnitude(both, 2048, 261.63, 48000.0);
+		const double nowG = magnitude(both, 2048, 392.00, 48000.0);
+
+		std::printf("   C4 alone %.4f; just after G4 starts: 262 Hz %.4f, 392 Hz %.4f\n",
+		            soloC, nowC, nowG);
+		chk(nowC > soloC * 1.3, "the new note did not start at the held note's pitch");
+		chk(nowG < nowC * 0.5, "the new note started on its own pitch - it did not glide");
+	}
+
 	std::printf(fails ? "\n%d CHECK(S) FAILED\n" : "\nall checks passed\n", fails);
 	return fails != 0;
 }

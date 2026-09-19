@@ -35,6 +35,11 @@ Per sounding note, per sample:
   bypass.
 
 Then sixteen voices mix to one stereo bus through the output trim and pan.
+
+**Portamento** is new too, and polyphonic: each note glides from the nearest
+pitch of the chord that was sounding when the current one began, each of those
+pitches used once, so a chord change moves in parallel rather than fanning out
+of a single note. Constant time, even in semitones, and off by default.
 `docs/signal-path.png` draws all of it; `docs/partial-bank.png` opens up one
 partial.
 
@@ -59,6 +64,9 @@ than the smaller Windows dialog that clipped it.
 * **Filter** — cutoff, Q and poles sliders, four text steppers for the shapes,
   and a live response panel.
 * **Envelopes** — three panels: amplitude, filter, and the selected formant.
+* **Glide** — the portamento time, on the right-hand strip. The knob is
+  labelled Glide because the label box is 48 px wide; everywhere else — the
+  readout, the host's automation lane — it is Portamento.
 * **A green lamp is on, a red one off** — including the formant selector, where
   the selected one is green. That is the DXi's own convention; this port had
   the two bitmaps the wrong way round until it was caught.

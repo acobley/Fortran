@@ -39,7 +39,8 @@ SLIDER_BOTTOM_INSET = 7.0
 W, H = 1064, 408
 ENV_X, ENV_W, ENV_H, ENV_TOP, ENV_GAP = 852, 200, 102, 6, 14
 STRIP_ROW_TOP, STRIP_LABEL_TOP, LFO_BUTTON_TOP = 346, 377, 390
-STRIP_COLS = (885, 952, 1019)
+STRIP_COLS = (877, 927, 977, 1027)      # output, pan, portamento, ladder
+STRIP_LABEL_HALF = 24
 
 def px(d): return d * KX
 def py(d): return d * KY
@@ -270,15 +271,19 @@ def main():
                    caption=env["caption"], annotation=env["annotation"])
 
     # -- output, pan, ladder, and the LFO button --------------------------
+    def strip_label(col, text):
+        c.text([col - STRIP_LABEL_HALF, STRIP_LABEL_TOP,
+                col + STRIP_LABEL_HALF, STRIP_LABEL_TOP + 12],
+               text, F_TINY, (255, 255, 255, 255))
+
     for col, name, label in ((STRIP_COLS[0], "outputLevel", "Output"),
-                             (STRIP_COLS[1], "pan", "Pan")):
+                             (STRIP_COLS[1], "pan", "Pan"),
+                             (STRIP_COLS[2], "portamento", "Glide")):
         draw_knob(c, art, col - KNOB / 2.0, STRIP_ROW_TOP, val(name))
-        c.text([col - 33, STRIP_LABEL_TOP, col + 33, STRIP_LABEL_TOP + 12],
-               label, F_TINY, (255, 255, 255, 255))
-    lamp(STRIP_COLS[2] - TOGGLE / 2.0, STRIP_ROW_TOP + (KNOB - TOGGLE) / 2.0,
+        strip_label(col, label)
+    lamp(STRIP_COLS[3] - TOGGLE / 2.0, STRIP_ROW_TOP + (KNOB - TOGGLE) / 2.0,
          val("ladderEnable") >= 0.5)
-    c.text([STRIP_COLS[2] - 33, STRIP_LABEL_TOP, STRIP_COLS[2] + 33, STRIP_LABEL_TOP + 12],
-           "Ladder", F_TINY, (255, 255, 255, 255))
+    strip_label(STRIP_COLS[3], "Ladder")
 
     btn = [ENV_X, LFO_BUTTON_TOP, ENV_X + ENV_W, LFO_BUTTON_TOP + 17]
     c.rect([btn[0] + 0.5, btn[1] + 0.5, btn[2] - 0.5, btn[3] - 0.5],

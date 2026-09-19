@@ -37,10 +37,55 @@ void Synth::setFilterControls (float cutoff01, float gain01, float poles01)
 }
 
 //------------------------------------------------------------------------
+int chooseGlideSource (const int* pitches, bool* used, int count, int noteNumber)
+{
+	int best = -1, bestIndex = -1, bestDistance = 0;
+
+	for (int i = 0; i < count; ++i)
+	{
+		if (used && used[i])
+			continue;
+		const int d = std::abs (pitches[i] - noteNumber);
+		if (best < 0 || d < bestDistance)
+		{
+			best = pitches[i];
+			bestIndex = i;
+			bestDistance = d;
+		}
+	}
+
+	if (best >= 0)
+	{
+		if (used)
+			used[bestIndex] = true;
+		return best;
+	}
+
+	// Every remembered pitch is spoken for. A bigger chord than the one
+	// before it: the extra notes reuse the nearest rather than being the
+	// only ones that do not glide.
+	for (int i = 0; i < count; ++i)
+	{
+		const int d = std::abs (pitches[i] - noteNumber);
+		if (best < 0 || d < bestDistance)
+		{
+			best = pitches[i];
+			bestDistance = d;
+		}
+	}
+	return best;
+}
+
+//------------------------------------------------------------------------
 void Synth::reset ()
 {
 	for (Voice& v : mVoices)
 		v = Voice {};
+
+	mGlideCount = 0;
+	mHadNoteOn = false;
+	mSampleClock = 0;
+	mLastNoteOnClock = 0;
 }
 
 //------------------------------------------------------------------------
@@ -124,10 +169,35 @@ void Synth::noteOn (int noteNumber, int velocity)
 		return;
 	}
 
+	// -- which note is this one gliding from? ------------------------------
+	//
+	// The first note of a chord snapshots what is sounding; the rest of the
+	// chord pairs off against that same snapshot. "The rest of the chord"
+	// is anything arriving within kChordWindowSeconds - wider apart than
+	// that and it is a played line, where each note glides from the one
+	// before it, which the fresh snapshot gives for free.
+	const long window = static_cast<long> (kChordWindowSeconds * mSampleRate);
+	if (!mHadNoteOn || (mSampleClock - mLastNoteOnClock) > window)
+	{
+		mGlideCount = 0;
+		for (const Voice& v : mVoices)
+			if (v.isActive () && mGlideCount < kMaxVoices)
+			{
+				mGlidePitches[mGlideCount] = v.noteNumber ();
+				mGlideTaken[mGlideCount] = false;
+				++mGlideCount;
+			}
+	}
+	mLastNoteOnClock = mSampleClock;
+	mHadNoteOn = true;
+
+	const int from = chooseGlideSource (mGlidePitches, mGlideTaken, mGlideCount, noteNumber);
+	const double fromHz = (from >= 0) ? noteFrequency (from) : 0.0;
+
 	if (Voice* v = allocateVoice (noteNumber))
 	{
 		v->noteOn (noteNumber, noteFrequency (noteNumber), velocity,
-		           mChannelVolume, mPan, mParams, mSampleRate);
+		           mChannelVolume, mPan, mParams, mSampleRate, fromHz);
 		v->setPitchBend (mBendFactor);
 		v->setLadderEnabled (mLadderEnabled);
 
@@ -152,6 +222,10 @@ void Synth::allNotesOff ()
 	for (Voice& v : mVoices)
 		if (v.isActive ())
 			v.noteOff ();
+
+	// Nothing to glide from after a panic: the next note starts on pitch.
+	mGlideCount = 0;
+	mHadNoteOn = false;
 }
 
 //------------------------------------------------------------------------
@@ -165,6 +239,9 @@ void Synth::render (float* stereo, int numSamples)
 	for (Voice& v : mVoices)
 		if (v.isActive ())
 			v.render (stereo, numSamples, mFilter);
+
+	// Only ever compared against itself, to tell one chord from the next.
+	mSampleClock += numSamples;
 
 	captureBlock (stereo, numSamples);
 }

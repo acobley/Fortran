@@ -271,6 +271,11 @@ enum Param : Steinberg::Vst::ParamID
 	    centre CC10 comes through untouched. See the note below. */
 	kPan,
 
+	/** Portamento. New: the DXi had no glide of any kind, on any note.
+	    Zero is off, and zero is the default, so no existing patch and no
+	    saved project starts gliding. See the note below. */
+	kPortamento,
+
 	kNumParams,
 
 	kBypass = 1000,         // standard VST3 bypass (kIsBypass)
@@ -460,6 +465,39 @@ double outputDecibels (double control);
 
 /** The inverse of outputDecibels, clamped to the knob's travel. */
 double outputControlFromDb (double db);
+
+//------------------------------------------------------------------------
+// Portamento
+//
+// New, and the DXi has nothing to say about it: it had no glide anywhere,
+// and a DXi never owned its voices in any case (PORTING-NOTES section 7),
+// so there was no note-to-note state to glide with.
+//
+// TWO DECISIONS, both of them audible:
+//
+// * CONSTANT TIME, not constant rate. Every glide takes the same time
+//   whatever the interval, so the notes of a chord change arrive together.
+//   A constant rate - a fixed number of semitones per second - makes wide
+//   leaps take proportionally longer, which is more like a real glissando
+//   and less like something you can play chords with.
+//
+// * EXPONENTIAL IN PITCH, i.e. linear in semitones. The glide multiplies
+//   the phase step by a constant ratio each sample rather than adding a
+//   constant number of hertz, so an octave downwards sweeps as evenly as
+//   an octave upwards. Linear-in-hertz glide spends most of its time at
+//   the top and arrives with a lurch.
+//
+// The control is squared, as Adsr squares its times, so the short glides
+// that are actually musical get most of the travel: the knob's centre is
+// a quarter of the maximum, not half of it.
+//------------------------------------------------------------------------
+constexpr double kPortamentoMaxSeconds = 2.0;
+
+/** Glide control (0..1) -> seconds. Exactly zero is off. */
+double portamentoSeconds (double control);
+
+/** The inverse, clamped to the knob's travel. */
+double portamentoControlFromSeconds (double seconds);
 
 //------------------------------------------------------------------------
 /** True for the ten per-harmonic phase controls. */
