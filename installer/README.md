@@ -30,6 +30,8 @@ cmake --build build --config Release
 
 strings -a build/VST3/Release/ForTran.vst3/Contents/MacOS/ForTran \
     | grep -c "$HOME"                           # 3. want 0
+lipo -archs build/VST3/Release/ForTran.vst3/Contents/MacOS/ForTran
+                                                #    want: x86_64 arm64
 
 installer/build-installer.sh \                  # 4. ONCE, signed
     --sign-app       "Developer ID Application: Your Name (TEAMID)" \
@@ -530,8 +532,8 @@ component package that is not embedded.
 ## Checking the result
 
 ```sh
-pkgutil --payload-files installer/ForTran-1.0.0.1.pkg   # what is really inside
-pkgutil --check-signature installer/ForTran-1.0.0.1.pkg # signed? notarised?
+pkgutil --payload-files installer/ForTran-<version>.pkg   # what is really inside
+pkgutil --check-signature installer/ForTran-<version>.pkg # signed? notarised?
 ```
 
 The built `.pkg` and the `build/` scratch directory are gitignored: they are

@@ -169,9 +169,25 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
       it, and the Audio Unit is dead everywhere else *(§9)*
 - [x] 🧑 Real signing identity and notarisation, if it is going further than
       this machine — `installer/README.md`  ✅ 15 Sep
-- [ ] 🧑 Publish: tag `v1.0.0.1` and a GitHub Release on `acobley/Fortran`
+- [x] 🧑 Publish: tag `v1.0.0.1` and a GitHub Release on `acobley/Fortran`
       carrying the `.pkg`, its SHA-256 and
-      `installer/release-notes-1.0.0.1.md`
+      `installer/release-notes-1.0.0.1.md`  ✅ 15 Sep
+
+## 1.1.0.0 — portamento, and a universal build
+
+- [x] 🤖 Portamento: polyphonic, nearest-previous-pitch pairing, constant
+      time, off by default — PORTING-NOTES section 7
+- [x] 🤖 `PORT_UNIVERSAL`, on by default, so a release build is arm64 +
+      x86_64. 1.0.0.1 shipped arm64 only inside an installer that claimed
+      both, which loads nothing on an Intel Mac
+- [x] 🤖 `installer/release-notes-1.1.0.0.md`
+- [ ] 🧑 `tools/run-tests.sh`, then a CLEAN Release build — the architectures
+      change only takes effect on a fresh configure
+- [ ] 🧑 `lipo -archs` says `x86_64 arm64`, and `strings | grep -c "$HOME"`
+      says 0
+- [ ] 🧑 `installer/build-installer.sh` once, signed and notarised
+- [ ] 🧑 `auval -v aumu FTrn AECo` against the Release build
+- [ ] 🧑 Tag `v1.1.0.0` and publish the release
 
 ---
 
