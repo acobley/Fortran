@@ -8,7 +8,35 @@
 as two separately choosable components, so somebody who only wants one format
 gets only that one.
 
-## Running it
+## Two scripts, and what they refuse to do
+
+Everything below is what the release sequence *means*; these two run it.
+
+```sh
+installer/build-release.sh          # tests, clean universal build, checks, signed .pkg
+installer/publish-release.sh        # checksum, push, tag, GitHub Release
+```
+
+`build-release.sh` looks the signing identities up rather than having them
+written down - one Developer ID Application and one Developer ID Installer,
+by SHA-1 hash so a stray space cannot mangle them - and stops before doing
+any work if it finds none, or two. It also refuses a dirty working tree,
+because the tag `publish-release.sh` makes would then point at a commit that
+is not what was built. `--unsigned` builds locally, `--skip-tests` when you
+have just run them, `--allow-dirty` for a build you will throw away.
+
+`publish-release.sh` asks `spctl` the question the downloading machine will
+ask and **refuses to publish anything Gatekeeper would refuse**. Then it
+writes the package's SHA-256 into the release notes, commits that, pushes,
+tags and creates the release - in that order, so nothing reaches GitHub
+until the package has passed. `--dry-run` prints what it would do.
+
+Both were tested against a stubbed toolchain: an arm64-only binary, a binary
+carrying home-directory paths, two Developer ID certificates, an
+un-notarised package, a tag that already exists, and notes whose checksum
+does not match the package. Each is refused with the reason.
+
+## Running it by hand
 
 **macOS only.** `pkgbuild`, `productbuild` and `codesign` are Apple's and exist
 nowhere else, so this cannot be run from the Linux side of a remote session.

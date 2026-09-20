@@ -185,13 +185,14 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
       `/Library/Audio/Presets/A. E. Cobley/ForTran`
 - [x] 🤖 `installer/release-notes-1.2.0.0.md` — 1.1.0.0 was built but never
       published, so this one carries everything since 1.0.0.1
-- [ ] 🧑 `tools/run-tests.sh`, then a CLEAN Release build — the architectures
-      change only takes effect on a fresh configure
-- [ ] 🧑 `lipo -archs` says `x86_64 arm64`, and `strings | grep -c "$HOME"`
-      says 0
-- [ ] 🧑 `installer/build-installer.sh` once, signed and notarised
+- [x] 🤖 `installer/build-release.sh` and `installer/publish-release.sh` —
+      the whole sequence, with each check as a refusal rather than a step to
+      remember
+- [ ] 🧑 `installer/build-release.sh` — tests, clean universal build, the
+      path and architecture checks, one signed and notarised package
 - [ ] 🧑 `auval -v aumu FTrn AECo` against the Release build
-- [ ] 🧑 Tag `v1.2.0.0` and publish the release
+- [ ] 🧑 `installer/publish-release.sh` — checksum, push, tag `v1.2.0.0`,
+      GitHub Release
 
 ---
 
