@@ -1,13 +1,14 @@
-# ForTran 1.1.0.0
+# ForTran 1.2.0.0
 
 A polyphonic additive/formant synthesiser for macOS, as a **VST3** and an
 **Audio Unit**. Originally a Cakewalk DXi written in 2003; this is the port.
 
-## New in this release
+Everything below is new since 1.0.0.1, the last release.
 
-**Portamento, and it is properly polyphonic.** The Glide knob on the right of
-the panel sets the time; zero is off, which is the default, so nothing you
-saved before this sounds different.
+## Portamento, and it is properly polyphonic
+
+The **Glide** knob on the right of the panel sets the time. Zero is off,
+which is the default, so nothing you saved before this sounds different.
 
 Each new note glides from the **nearest pitch of the chord that was sounding
 when the current chord began**, and each of those pitches is used once - so
@@ -22,18 +23,21 @@ semitones**, so an octave down sweeps at the same rate as an octave up. The
 knob is squared like the envelope times: its centre is 500 ms of a two-second
 maximum.
 
-**Factory presets.** Thirteen patches, installed into
-`/Library/Audio/Presets/A. E. Cobley/ForTran` and offered as their own choice
-in the installer. The same patches serve both formats - the VST3 and the
-Audio Unit read that one folder - and they carry identical state, so a patch
-sounds the same in Logic and in Cubase. Three of them were saved before pan
-and portamento existed and load with those two at their defaults: centred,
-and no glide.
+## Factory presets
 
-**Universal binary.** 1.0.0.1 was built for Apple Silicon only while its
-installer claimed both architectures, so on an Intel Mac - or in any host
-running under Rosetta - it installed cleanly and then loaded nothing. This
-build is arm64 + x86_64.
+Thirteen patches, installed into `/Library/Audio/Presets/A. E. Cobley/ForTran`
+and offered as their own choice in the installer. One folder serves both
+formats - the VST3 and the Audio Unit each read that path - and both carry
+identical state, so a patch sounds the same in Logic and in Cubase.
+
+Three of them were saved before pan and portamento existed and load with
+those two at their defaults: centred, and no glide.
+
+## Universal binary
+
+1.0.0.1 was built for Apple Silicon only while its installer claimed both
+architectures, so on an Intel Mac - or in any host running under Rosetta - it
+installed cleanly and then loaded nothing. This build is arm64 + x86_64.
 
 ## What it is
 
@@ -44,8 +48,8 @@ tremolo and a per-harmonic LFO; sixteen voices.
 
 ## Installing
 
-Download `ForTran-1.1.0.0.pkg` and open it. The installer offers the two
-formats separately:
+Download `ForTran-1.2.0.0.pkg` and open it. The installer offers each part
+separately:
 
     /Library/Audio/Plug-Ins/VST3/ForTran.vst3
     /Library/Audio/Plug-Ins/Components/ForTran.component
@@ -96,7 +100,7 @@ lives in your own `~/Library/Audio/Presets` and is untouched.
 ## Checksum
 
 ```
-<paste: shasum -a 256 installer/ForTran-1.1.0.0.pkg>
+<paste: shasum -a 256 installer/ForTran-1.2.0.0.pkg>
 ```
 
 ---
