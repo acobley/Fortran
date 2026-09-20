@@ -45,6 +45,13 @@ ROOT="$(cd "$HERE/.." && pwd)"
 NAME="ForTran"
 VST3_ID="audio.fortran.vst3"
 AU_ID="audio.fortran.audiounit"
+PRESETS_ID="audio.fortran.presets"
+
+# Where both formats look for factory presets, and it is the same folder for
+# each: VST3 uses $COMPANY/$PLUGIN-NAME (Steinberg's Preset Locations), and
+# an Audio Unit uses <manufacturer>/<plug-in> taken from the component's name
+# - "A. E. Cobley: ForTran" - which lands in the same place.
+PRESETS_DIR="/Library/Audio/Presets/A. E. Cobley/$NAME"
 
 #-----------------------------------------------------------------------------
 # THE VERSION COMES OUT OF CMakeLists.txt, not out of a second copy here. Two
@@ -165,6 +172,20 @@ WORK="$HERE/build"
 rm -rf "$WORK"
 mkdir -p "$WORK/root-vst3" "$WORK/root-au" "$WORK/pkgs"
 
+# The factory presets, if there are any. A project with none still builds -
+# the choice simply does not appear.
+PRESET_COUNT=0
+if [ -d "$HERE/presets" ]; then
+    PRESET_COUNT=$(find "$HERE/presets" -type f \( -name '*.vstpreset' -o -name '*.aupreset' \) | wc -l | tr -d ' ')
+fi
+if [ "$PRESET_COUNT" -gt 0 ]; then
+    mkdir -p "$WORK/root-presets"
+    # -R of the CONTENTS, not the folder: the install location is already
+    # the per-plug-in directory, so copying the folder itself would give
+    # .../ForTran/presets/*.vstpreset and no host would look there.
+    cp "$HERE/presets/"*.vstpreset "$HERE/presets/"*.aupreset "$WORK/root-presets/" 2>/dev/null || true
+fi
+
 echo "==> ForTran $VERSION, from $CONFIG"
 
 #-----------------------------------------------------------------------------
@@ -214,7 +235,7 @@ while IFS= read -r link; do
         /*) escapes="$escapes
   $link -> $target" ;;
     esac
-done < <(find "$WORK/root-vst3" "$WORK/root-au" -type l)
+done < <(find "$WORK/root-vst3" "$WORK/root-au" ${PRESET_COUNT:+"$WORK/root-presets"} -type l)
 
 if [ -n "$escapes" ]; then
     echo "build-installer: absolute symlinks in the payload - these point at THIS" >&2
@@ -293,6 +314,20 @@ pkgbuild --quiet \
     --scripts "$WORK/scripts-au" \
     "$WORK/pkgs/$NAME-AU.pkg"
 
+# The presets are data, not code, so nothing here is signed - but they ride
+# inside the same notarised product archive as everything else.
+if [ "$PRESET_COUNT" -gt 0 ]; then
+    pkgbuild --quiet \
+        --root "$WORK/root-presets" \
+        --identifier "$PRESETS_ID.pkg" \
+        --version "$VERSION" \
+        --install-location "$PRESETS_DIR" \
+        "$WORK/pkgs/$NAME-Presets.pkg"
+    echo "==> $PRESET_COUNT preset file(s) packaged for $PRESETS_DIR"
+else
+    echo "==> no presets in installer/presets - skipping that component"
+fi
+
 echo "==> component packages built"
 
 #-----------------------------------------------------------------------------
@@ -304,6 +339,17 @@ cp "$HERE/resources/welcome.html" "$HERE/resources/conclusion.html" "$WORK/resou
 cp "$ROOT/LICENSE" "$WORK/resources/license.txt"
 
 sed "s/__VERSION__/$VERSION/g" "$HERE/distribution.xml" > "$WORK/distribution.xml"
+
+# A distribution that names a package productbuild was not given is one
+# Installer cannot resolve, and it fails at the page stage naming none of
+# it - so with no preset files, the block between the PRESETS markers comes
+# out. Marked as a RANGE rather than line by line, because a multi-line XML
+# element cannot carry a comment on each of its lines.
+if [ "$PRESET_COUNT" -eq 0 ]; then
+    sed '/PRESETS-BEGIN/,/PRESETS-END/d' "$WORK/distribution.xml" > "$WORK/distribution-trimmed.xml"
+    mv "$WORK/distribution-trimmed.xml" "$WORK/distribution.xml"
+    echo "==> no presets, so the presets choice is not in the distribution"
+fi
 
 #-----------------------------------------------------------------------------
 # VALIDATE THE DISTRIBUTION, TWICE, because a bad one is not caught by
@@ -440,6 +486,9 @@ echo "    $FINAL"
 echo
 echo "    Installs:  /Library/Audio/Plug-Ins/VST3/$NAME.vst3"
 echo "               /Library/Audio/Plug-Ins/Components/$NAME.component"
+if [ "$PRESET_COUNT" -gt 0 ]; then
+echo "               $PRESETS_DIR ($PRESET_COUNT files)"
+fi
 echo
 echo "    Check what is really in it with:"
 echo "      pkgutil --payload-files \"$FINAL\" | head"

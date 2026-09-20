@@ -3,6 +3,7 @@
 //------------------------------------------------------------------------
 
 #include "ForTranProcessor.h"
+#include "ForTranState.h"
 #include "ForTranIDs.h"
 #include "VoiceParamsMap.h"
 
@@ -341,15 +342,10 @@ tresult PLUGIN_API ForTranProcessor::getState (IBStream* state)
 	if (!state)
 		return kResultFalse;
 
-	IBStreamer streamer (state, kLittleEndian);
-
-	streamer.writeInt32 (1);              // stream version
-	streamer.writeInt32 (kNumParams);
-	for (int i = 0; i < kNumParams; ++i)
-		streamer.writeDouble (mParams[i]);
-	streamer.writeInt32 (mBypass ? 1 : 0);
-
-	return kResultOk;
+	// The format lives in ForTranState, because a .vstpreset carries this
+	// same stream as its Comp chunk and tools/make-presets.cpp writes one
+	// with no processor in the picture at all.
+	return writeComponentState (state, mParams, mBypass) ? kResultOk : kResultFalse;
 }
 
 //------------------------------------------------------------------------
@@ -358,35 +354,10 @@ tresult PLUGIN_API ForTranProcessor::setState (IBStream* state)
 	if (!state)
 		return kResultFalse;
 
-	IBStreamer streamer (state, kLittleEndian);
-
-	int32 version = 0;
-	if (!streamer.readInt32 (version))
+	bool bypass = mBypass;
+	if (!readComponentState (state, mParams, bypass))
 		return kResultFalse;
-
-	int32 count = 0;
-	if (!streamer.readInt32 (count))
-		return kResultFalse;
-
-	for (int32 i = 0; i < count; ++i)
-	{
-		double v = 0.0;
-		if (!streamer.readDouble (v))
-			return kResultFalse;
-		if (i < kNumParams)
-			mParams[i] = v;
-	}
-
-	// A project saved before a parameter existed carries a shorter stream.
-	// Everything it does not mention goes back to its default rather than
-	// keeping whatever the previous patch left in this instance - loading an
-	// old project after a new one must not inherit the new one's settings.
-	for (int32 i = count; i < kNumParams; ++i)
-		mParams[i] = kParams[i].defaultNormalized ();
-
-	int32 bypass = 0;
-	if (streamer.readInt32 (bypass))
-		mBypass = (bypass != 0);
+	mBypass = bypass;
 
 	return kResultOk;
 }

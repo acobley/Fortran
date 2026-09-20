@@ -326,6 +326,52 @@ and check `xattr -p com.apple.quarantine` shows it arrived quarantined before
 you install it. Quarantined, signed and notarised, installing without a murmur
 is the whole goal.
 
+## Factory presets
+
+Patches are **authored in a host** - you play them and save them - and Logic
+writes a `.aupreset`. Everything else is mechanical:
+
+```sh
+tools/make-presets.sh          # .aupreset -> .vstpreset, for everything in installer/presets/
+```
+
+Both formats carry the same thing: the bytes `ForTranProcessor::getState`
+wrote. The AU wrapper keeps them in the plist under `Processor State`
+(`auwrapper.mm`, `SaveState`) and a `.vstpreset` carries them as its `Comp`
+chunk, so the conversion pulls one out and asks Steinberg's own `PresetFile`
+to wrap it. Nothing is re-derived, which is why the same patch cannot end up
+sounding different in Logic and in Cubase.
+
+Both files go in `installer/presets/`, both are committed, and both are
+installed by a third component package into
+
+    /Library/Audio/Presets/A. E. Cobley/ForTran
+
+which is the folder *each* format looks in: VST3 uses `$COMPANY/$PLUGIN-NAME`
+and an Audio Unit uses `<manufacturer>/<plug-in>` from the component's name,
+"A. E. Cobley: ForTran". One directory, one component, both formats.
+
+Three things worth knowing:
+
+- **A preset is married to the class UID.** A host silently ignores a
+  `.vstpreset` whose processor UID does not match, so these files are tied to
+  the UID in `ForTranIDs.h` as permanently as the bundle ids are.
+- **An older patch is a shorter stream, and that is fine.** The state is
+  length-prefixed, so a patch saved before a parameter existed loads with
+  that control at its default - `readComponentState` does it in one place for
+  the processor, the preset tool and the tests. `tools/run-tests.sh` prints
+  the parameter count of every shipped preset, so you can see which ones
+  predate what.
+- **`installer/presets` empty is not an error.** `build-installer.sh` skips
+  the component and strips the `PRESETS-BEGIN`/`PRESETS-END` block out of the
+  distribution, because a `pkg-ref` to a package that was never built is
+  precisely what Installer reports as `pagecontroller error -1`.
+
+`tests/PresetTests.cpp` runs over whatever is in `installer/presets` - not
+over a fixture - and checks the class UID, that the state parses, that no
+value is outside 0..1, and that the `.aupreset` and the `.vstpreset` carry
+**byte-identical** state.
+
 ## Before handing it to a tester
 
 **"It installed on another Mac" is not the same as "it is ready".** Two

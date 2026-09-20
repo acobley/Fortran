@@ -1,0 +1,15 @@
+# The VST3 SDK sources that PresetFile drags in, listed once because two
+# things build against them: tools/make-presets.cpp and tests/PresetTests.cpp.
+# Paths are relative to the SDK root. Nothing here is macOS-specific.
+public.sdk/source/vst/vstpresetfile.cpp
+public.sdk/source/common/memorystream.cpp
+base/source/fstreamer.cpp
+base/source/fbuffer.cpp
+base/source/fstring.cpp
+base/source/fobject.cpp
+base/source/fdebug.cpp
+base/source/baseiids.cpp
+base/source/updatehandler.cpp
+base/thread/source/flock.cpp
+pluginterfaces/base/funknown.cpp
+pluginterfaces/base/coreiids.cpp

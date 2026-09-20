@@ -18,6 +18,7 @@ NAME="ForTran"
 VST3="/Library/Audio/Plug-Ins/VST3/$NAME.vst3"
 AU="/Library/Audio/Plug-Ins/Components/$NAME.component"
 NESTED="$AU/Contents/Resources/plugin.vst3"
+PRESETS="/Library/Audio/Presets/A. E. Cobley/$NAME"
 
 FAILED=0
 pass () { printf '  ok    %s\n' "$1"; }
@@ -94,7 +95,7 @@ for binary in "$VST3/Contents/MacOS/$NAME" "$AU/Contents/MacOS/$NAME"; do
         # INSTANTIATES the component, which it cannot do for the wrong
         # architecture.
         note "$label - could not determine the architectures here"
-        note "  neither lipo nor file was usable; section 6 answers this anyway"
+        note "  neither lipo nor file was usable; section 7 answers this anyway"
     elif printf '%s' "$archs" | grep -q "$(uname -m)"; then
         pass "$label - $archs"
     else
@@ -127,7 +128,29 @@ done
 
 #-----------------------------------------------------------------------------
 echo
-echo "5. Installer receipts"
+echo "5. Factory presets"
+#-----------------------------------------------------------------------------
+# One folder serves both formats: VST3 reads $COMPANY/$PLUGIN-NAME, and the
+# Audio Unit reads <manufacturer>/<plug-in> from the component's name, which
+# is the same path. Not a failure if there are none - a build can ship
+# without them - but a partial set means the component package went wrong.
+if [ -d "$PRESETS" ]; then
+    vst3Presets=$(ls "$PRESETS"/*.vstpreset 2>/dev/null | wc -l | tr -d ' ')
+    auPresets=$(ls "$PRESETS"/*.aupreset 2>/dev/null | wc -l | tr -d ' ')
+    pass "$PRESETS"
+    note "$vst3Presets .vstpreset, $auPresets .aupreset"
+    if [ "$vst3Presets" -gt 0 ] && [ "$auPresets" -gt 0 ] && [ "$vst3Presets" -ne "$auPresets" ]; then
+        fail "the two formats have different numbers of presets"
+        note "every patch should ship as both, or one format is short"
+    fi
+else
+    note "no presets installed - either none were packaged, or the choice was"
+    note "  turned off during the install"
+fi
+
+#-----------------------------------------------------------------------------
+echo
+echo "6. Installer receipts"
 #-----------------------------------------------------------------------------
 receipts="$(pkgutil --pkgs 2>/dev/null | grep -i fortran || true)"
 if [ -n "$receipts" ]; then
@@ -138,7 +161,7 @@ fi
 
 #-----------------------------------------------------------------------------
 echo
-echo "6. Does the Audio Unit actually load?"
+echo "7. Does the Audio Unit actually load?"
 #-----------------------------------------------------------------------------
 # THE REAL TEST OF SECTION 2. auval instantiates the component, which is
 # precisely what a dangling nested VST3 makes impossible.

@@ -62,6 +62,31 @@ else
 	printf '\n===== param-tests\nskipped - no VST3 SDK at external/vst3sdk yet.\nRun ./setup-xcode.sh once to fetch it.\n'
 fi
 
+# The factory presets, checked against what is actually in installer/presets.
+# Needs the SDK too - the .vstpreset is read by Steinberg's own PresetFile,
+# from the source list make-presets.sh builds against.
+if [ -d "$SDK" ]; then
+	printf '\n===== preset-tests\n'
+	SDK_SOURCES=""
+	while IFS= read -r line; do
+		case "$line" in ''|\#*) continue ;; esac
+		SDK_SOURCES="$SDK_SOURCES $SDK/$line"
+	done < "$ROOT/tools/sdk-preset-sources.txt"
+
+	# shellcheck disable=SC2086
+	if $CXX -std=c++17 -O2 -DRELEASE=1 -DNDEBUG -I"$SDK" -I"$S" \
+	        "$S/ForTranParams.cpp" "$S/ForTranState.cpp" \
+	        "$T/PresetTests.cpp" $SDK_SOURCES -o "$OUT/preset-tests" 2>/dev/null; then
+		"$OUT/preset-tests" "$ROOT/installer/presets" \
+			|| { echo "FAILED: preset-tests" >&2; FAILED=$((FAILED + 1)); }
+	else
+		echo "FAILED TO BUILD: preset-tests" >&2
+		FAILED=$((FAILED + 1))
+	fi
+else
+	printf '\n===== preset-tests\nskipped - no VST3 SDK at external/vst3sdk yet.\n'
+fi
+
 printf '\n'
 if [ "$FAILED" -eq 0 ]; then
 	echo "All suites passed."

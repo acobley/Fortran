@@ -160,6 +160,12 @@ tools/run-tests.sh                              # every suite
 installer/build-installer.sh                    # unsigned, this machine only
 ```
 
+Factory presets live in `installer/presets/`, as a `.aupreset` saved from a
+host and the `.vstpreset` `tools/make-presets.sh` derives from it; the two
+carry identical state, and a third component package installs both into
+`/Library/Audio/Presets/A. E. Cobley/ForTran`, which is where each format
+looks.
+
 With no arguments the payload is ad-hoc signed and the package is not signed
 at all: fine locally, refused by Gatekeeper on anything downloaded. For real
 distribution both halves of a Developer ID and a notarisation are needed, and
@@ -173,7 +179,7 @@ machine on which the Audio Unit's nested VST3 can be proved sound.
 |---|---|
 | `source/` | the plug-in — seven VST3 files plus `Adsr`, `FilterInfo`, `Voice`, `Synth` and the controls |
 | `resource/` | artwork, converted from the DXi's `.bmp`s, and `au-info.plist` |
-| `tools/` | `run-tests.sh`, and the scripts that build the background and button artwork |
+| `tools/` | `run-tests.sh`, `make-presets.sh`, and the scripts that build the background, buttons and the window mock-up |
 | `installer/` | the signed, notarised `.pkg` build and its walkthrough |
 | `tests/` | standalone DSP tests |
 | `docs/` | the two signal-path diagrams |

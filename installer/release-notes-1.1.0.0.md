@@ -22,6 +22,14 @@ semitones**, so an octave down sweeps at the same rate as an octave up. The
 knob is squared like the envelope times: its centre is 500 ms of a two-second
 maximum.
 
+**Factory presets.** Thirteen patches, installed into
+`/Library/Audio/Presets/A. E. Cobley/ForTran` and offered as their own choice
+in the installer. The same patches serve both formats - the VST3 and the
+Audio Unit read that one folder - and they carry identical state, so a patch
+sounds the same in Logic and in Cubase. Three of them were saved before pan
+and portamento existed and load with those two at their defaults: centred,
+and no glide.
+
 **Universal binary.** 1.0.0.1 was built for Apple Silicon only while its
 installer claimed both architectures, so on an Intel Mac - or in any host
 running under Rosetta - it installed cleanly and then loaded nothing. This
@@ -41,6 +49,7 @@ formats separately:
 
     /Library/Audio/Plug-Ins/VST3/ForTran.vst3
     /Library/Audio/Plug-Ins/Components/ForTran.component
+    /Library/Audio/Presets/A. E. Cobley/ForTran
 
 Quit your DAW first - a running host holds the old copy open. Signed with a
 Developer ID and notarised by Apple, so it installs without any
@@ -78,7 +87,11 @@ A `.pkg` never will, so:
 ```sh
 sudo rm -rf /Library/Audio/Plug-Ins/VST3/ForTran.vst3
 sudo rm -rf /Library/Audio/Plug-Ins/Components/ForTran.component
+sudo rm -rf "/Library/Audio/Presets/A. E. Cobley/ForTran"
 ```
+
+The last line takes the factory presets with it. Anything you saved yourself
+lives in your own `~/Library/Audio/Presets` and is untouched.
 
 ## Checksum
 
