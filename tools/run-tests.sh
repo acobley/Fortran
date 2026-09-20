@@ -73,14 +73,30 @@ if [ -d "$SDK" ]; then
 		SDK_SOURCES="$SDK_SOURCES $SDK/$line"
 	done < "$ROOT/tools/sdk-preset-sources.txt"
 
+	# ON macOS THIS NEEDS CoreFoundation. Two of those sources - funknown.cpp
+	# for CFUUIDCreate, and fstring.cpp for its CFString allocator - are wrapped
+	# in SMTG_OS_MACOS, so they compile to nothing on Linux and the link
+	# succeeds there while failing on the Mac with undefined _CFUUIDCreate.
+	# Exactly the wrong way round for a project whose releases are built on a
+	# Mac and whose assistant works on Linux.
+	SDK_LIBS=""
+	if [ "$(uname -s)" = "Darwin" ]; then
+		SDK_LIBS="-framework CoreFoundation"
+	fi
+
+	# The build output is KEPT and printed when it fails. Swallowing it left
+	# "FAILED TO BUILD: preset-tests" and nothing else, which says only that
+	# something is wrong and not one word about what.
 	# shellcheck disable=SC2086
 	if $CXX -std=c++17 -O2 -DRELEASE=1 -DNDEBUG -I"$SDK" -I"$S" \
 	        "$S/ForTranParams.cpp" "$S/ForTranState.cpp" \
-	        "$T/PresetTests.cpp" $SDK_SOURCES -o "$OUT/preset-tests" 2>/dev/null; then
+	        "$T/PresetTests.cpp" $SDK_SOURCES $SDK_LIBS \
+	        -o "$OUT/preset-tests" >"$OUT/preset-build.log" 2>&1; then
 		"$OUT/preset-tests" "$ROOT/installer/presets" \
 			|| { echo "FAILED: preset-tests" >&2; FAILED=$((FAILED + 1)); }
 	else
 		echo "FAILED TO BUILD: preset-tests" >&2
+		sed 's/^/    /' "$OUT/preset-build.log" >&2
 		FAILED=$((FAILED + 1))
 	fi
 else

@@ -30,6 +30,17 @@ while IFS= read -r line; do
 	SDK_SOURCES="$SDK_SOURCES $SDK/$line"
 done < "$ROOT/tools/sdk-preset-sources.txt"
 
+# ON macOS THIS NEEDS CoreFoundation. Two of those sources - funknown.cpp
+# for CFUUIDCreate, and fstring.cpp for its CFString allocator - are wrapped
+# in SMTG_OS_MACOS, so they compile to nothing on Linux and the link
+# succeeds there while failing on the Mac with undefined _CFUUIDCreate.
+# Exactly the wrong way round for a project whose releases are built on a
+# Mac and whose assistant works on Linux.
+SDK_LIBS=""
+if [ "$(uname -s)" = "Darwin" ]; then
+	SDK_LIBS="-framework CoreFoundation"
+fi
+
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
@@ -38,6 +49,6 @@ mkdir -p installer/presets
 # shellcheck disable=SC2086
 $CXX -std=c++17 -O2 -DRELEASE=1 -DNDEBUG -I"$SDK" -I"$ROOT/source" \
 	"$ROOT/source/ForTranParams.cpp" "$ROOT/source/ForTranState.cpp" \
-	"$ROOT/tools/make-presets.cpp" $SDK_SOURCES -o "$OUT/make-presets"
+	"$ROOT/tools/make-presets.cpp" $SDK_SOURCES $SDK_LIBS -o "$OUT/make-presets"
 
 "$OUT/make-presets" "$ROOT/installer/presets"
