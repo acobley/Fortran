@@ -41,9 +41,9 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>1.0.0</string>
+	<string>1.2.1</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>1.2.1</string>
 
 	<key>AudioComponents</key>
 	<array>
@@ -55,20 +55,20 @@
 			<key>manufacturer</key>
 			<string>AECo</string>
 			<key>name</key>
-			<string>A. E. Cobley: ForTran</string>
+			<string>AE Cobley: ForTran</string>
 			<key>subtype</key>
 			<string>FTrn</string>
 			<key>type</key>
 			<string>aumu</string>
-			<!-- 0x00010000 == 1.0.0 -->
+			<!-- 0x00010201 == 1.2.1 -->
 			<key>version</key>
-			<integer>65536</integer>
+			<integer>66049</integer>
 		</dict>
 	</array>
 
 	<!-- Read by the wrapper with sscanf("%x"), so this one is a hex string. -->
 	<key>AudioUnit Version</key>
-	<string>00010000</string>
+	<string>00010201</string>
 
 	<!-- MUST match what ForTranProcessor::setBusArrangements accepts.
 	     ForTran is an instrument: no audio input, one stereo output.

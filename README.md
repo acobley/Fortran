@@ -163,7 +163,7 @@ installer/build-installer.sh                    # unsigned, this machine only
 Factory presets live in `installer/presets/`, as a `.aupreset` saved from a
 host and the `.vstpreset` `tools/make-presets.sh` derives from it; the two
 carry identical state, and a third component package installs both into
-`/Library/Audio/Presets/A. E. Cobley/ForTran`, which is where each format
+`/Library/Audio/Presets/AE Cobley/ForTran`, which is where each format
 looks.
 
 With no arguments the payload is ad-hoc signed and the package is not signed

@@ -182,7 +182,7 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
       both, which loads nothing on an Intel Mac
 - [x] 🤖 Factory presets: your .aupreset patches converted to .vstpreset,
       installed by a third component into
-      `/Library/Audio/Presets/A. E. Cobley/ForTran`
+      `/Library/Audio/Presets/AE Cobley/ForTran` (`A. E. Cobley` up to 1.2.0.0)
 - [x] 🤖 `installer/release-notes-1.2.0.0.md` — 1.1.0.0 was built but never
       published, so this one carries everything since 1.0.0.1
 - [x] 🤖 `installer/build-release.sh` and `installer/publish-release.sh` —

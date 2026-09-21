@@ -50,8 +50,9 @@ PRESETS_ID="audio.fortran.presets"
 # Where both formats look for factory presets, and it is the same folder for
 # each: VST3 uses $COMPANY/$PLUGIN-NAME (Steinberg's Preset Locations), and
 # an Audio Unit uses <manufacturer>/<plug-in> taken from the component's name
-# - "A. E. Cobley: ForTran" - which lands in the same place.
-PRESETS_DIR="/Library/Audio/Presets/A. E. Cobley/$NAME"
+# - "AE Cobley: ForTran" - which lands in the same place. (Up to 1.2.0.0 both
+# were "A. E. Cobley"; REAPER cuts an AU name at its first full stop.)
+PRESETS_DIR="/Library/Audio/Presets/AE Cobley/$NAME"
 
 #-----------------------------------------------------------------------------
 # THE VERSION COMES OUT OF CMakeLists.txt, not out of a second copy here. Two
@@ -477,6 +478,33 @@ if [ -n "$NOTARY_PROFILE" ]; then
         echo "that downloads it. Do not ship this." >&2
         exit 1
     fi
+fi
+
+
+#-----------------------------------------------------------------------------
+# RECORD WHICH COMMIT THIS PACKAGE CAME FROM.
+#
+# publish-release.sh tags the commit the binary was built from, and by the
+# time it runs HEAD has usually moved: pasting the checksum into the release
+# notes is itself a commit. Tagging HEAD then marks a tree that did not
+# produce the binary, which is exactly the thing a tag is supposed to settle.
+#
+# Recorded here, where the answer is still right, rather than inferred later.
+# `dirty` matters: a package built from uncommitted changes has no commit that
+# describes it, and the publish script refuses rather than tagging something
+# close to it.
+#-----------------------------------------------------------------------------
+if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    {
+        echo "commit=$(git -C "$ROOT" rev-parse HEAD)"
+        echo "version=$VERSION"
+        if [ -n "$(git -C "$ROOT" status --porcelain 2>/dev/null)" ]; then
+            echo "dirty=yes"
+        else
+            echo "dirty=no"
+        fi
+    } > "$HERE/.built-from"
+    echo "==> recorded the build commit in installer/.built-from"
 fi
 
 rm -rf "$WORK"

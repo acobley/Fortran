@@ -8,33 +8,44 @@
 as two separately choosable components, so somebody who only wants one format
 gets only that one.
 
-## Two scripts, and what they refuse to do
+## Releasing: two scripts, and what they refuse to do
 
-Everything below is what the release sequence *means*; these two run it.
+Everything below is what the release sequence *means*; these run it.
 
 ```sh
-installer/build-release.sh          # tests, clean universal build, checks, signed .pkg
-installer/publish-release.sh        # checksum, push, tag, GitHub Release
+installer/build-release.sh              # tests, clean universal build, checks, ONE signed pkg
+installer/verify-install.sh             # after installing it on this Mac
+installer/publish-release.sh --dry-run  # every check, nothing pushed
+installer/publish-release.sh            # checksum, push, tag the build commit, GitHub Release
 ```
 
-`build-release.sh` looks the signing identities up rather than having them
-written down - one Developer ID Application and one Developer ID Installer,
-by SHA-1 hash so a stray space cannot mangle them - and stops before doing
-any work if it finds none, or two. It also refuses a dirty working tree,
-because the tag `publish-release.sh` makes would then point at a commit that
-is not what was built. `--unsigned` builds locally, `--skip-tests` when you
-have just run them, `--allow-dirty` for a build you will throw away.
+They are the same two files in every AE Cobley plug-in; the name comes from
+`NAME=` in `build-installer.sh`.
 
-`publish-release.sh` asks `spctl` the question the downloading machine will
-ask and **refuses to publish anything Gatekeeper would refuse**. Then it
-writes the package's SHA-256 into the release notes, commits that, pushes,
-tags and creates the release - in that order, so nothing reaches GitHub
-until the package has passed. `--dry-run` prints what it would do.
+`build-release.sh` looks the signing identities up (one Developer ID
+Application, one Developer ID Installer, by SHA-1 hash) and the notary profile
+(`project6-notary`, or `--notarize <profile>` / `NOTARY_PROFILE=`). Before
+building anything it refuses: version numbers that disagree between
+`CMakeLists.txt`, `source/version.h` and `resource/au-info.plist`, or a maker's
+name that differs between the VST3 and the AU or has a full stop in it
+(`tools/check-versions.py`); a version that is already tagged; missing release
+notes, or notes still saying TODO; a dirty tree; failing tests. After a clean
+universal build it refuses home-directory paths in the binaries and a
+single-architecture signed build. `--unsigned`, `--skip-tests` and
+`--allow-dirty` are for local builds.
 
-Both were tested against a stubbed toolchain: an arm64-only binary, a binary
-carrying home-directory paths, two Developer ID certificates, an
-un-notarised package, a tag that already exists, and notes whose checksum
-does not match the package. Each is refused with the reason.
+`build-installer.sh` records the commit it built from in
+`installer/.built-from`. `publish-release.sh` refuses a package that is not
+stapled or that Gatekeeper rejects, one built from a dirty tree, a tag already
+on GitHub at another commit, other uncommitted changes, and a missing `gh`
+login — checked before anything is pushed. It writes the stapled package's
+SHA-256 into the notes' `SHA-256: <paste from: …>` line, commits that, pushes,
+and tags **the commit the package was built from**, not HEAD. `--remote <name>`
+pushes somewhere other than origin.
+
+Both scripts' refusals are stub-tested, on Linux or a Mac, by
+`installer/test-build-release.sh` and `installer/test-publish.sh`, which the
+project's test runner calls.
 
 ## Running it by hand
 
@@ -373,11 +384,11 @@ sounding different in Logic and in Cubase.
 Both files go in `installer/presets/`, both are committed, and both are
 installed by a third component package into
 
-    /Library/Audio/Presets/A. E. Cobley/ForTran
+    /Library/Audio/Presets/AE Cobley/ForTran
 
 which is the folder *each* format looks in: VST3 uses `$COMPANY/$PLUGIN-NAME`
 and an Audio Unit uses `<manufacturer>/<plug-in>` from the component's name,
-"A. E. Cobley: ForTran". One directory, one component, both formats.
+"AE Cobley: ForTran". One directory, one component, both formats.
 
 Three things worth knowing:
 

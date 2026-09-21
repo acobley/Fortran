@@ -68,7 +68,7 @@
          "pagecontroller error -1", naming none of it. -->
     <choice id="choice.presets"
             title="Factory presets"
-            description="Patches installed into /Library/Audio/Presets/A. E. Cobley/ForTran, where both the VST3 and the Audio Unit look for them.">
+            description="Patches installed into /Library/Audio/Presets/AE Cobley/ForTran, where both the VST3 and the Audio Unit look for them.">
         <pkg-ref id="audio.fortran.presets.pkg"/>
     </choice>
 

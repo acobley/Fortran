@@ -18,7 +18,7 @@ NAME="ForTran"
 VST3="/Library/Audio/Plug-Ins/VST3/$NAME.vst3"
 AU="/Library/Audio/Plug-Ins/Components/$NAME.component"
 NESTED="$AU/Contents/Resources/plugin.vst3"
-PRESETS="/Library/Audio/Presets/A. E. Cobley/$NAME"
+PRESETS="/Library/Audio/Presets/AE Cobley/$NAME"
 
 FAILED=0
 pass () { printf '  ok    %s\n' "$1"; }
@@ -134,6 +134,11 @@ echo "5. Factory presets"
 # Audio Unit reads <manufacturer>/<plug-in> from the component's name, which
 # is the same path. Not a failure if there are none - a build can ship
 # without them - but a partial set means the component package went wrong.
+OLD_PRESETS="/Library/Audio/Presets/A. E. Cobley/$NAME"
+if [ -d "$OLD_PRESETS" ]; then
+    note "$OLD_PRESETS is left over from 1.2.0.0 or earlier. Nothing looks"
+    note "there now; remove it with:  sudo rm -rf \"$OLD_PRESETS\""
+fi
 if [ -d "$PRESETS" ]; then
     vst3Presets=$(ls "$PRESETS"/*.vstpreset 2>/dev/null | wc -l | tr -d ' ')
     auPresets=$(ls "$PRESETS"/*.aupreset 2>/dev/null | wc -l | tr -d ' ')
