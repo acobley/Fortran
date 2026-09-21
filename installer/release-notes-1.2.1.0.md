@@ -104,7 +104,7 @@ lives in your own `~/Library/Audio/Presets` and is untouched.
 ## Checksum
 
 ```
-SHA-256: <paste from: shasum -a 256 installer/ForTran-1.2.1.0.pkg>
+SHA-256: 424a275cc48a07531fed54bad9a89346d2a3e61c9936fbaa1e163f39d1836568
 ```
 
 ---
