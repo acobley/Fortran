@@ -65,7 +65,10 @@ show each partial's real output over a tick at its set level, with the output
 waveform faint behind them; the filter's dots slide along the response as the
 filter envelope sweeps, with a marker at the sweep; the amp and partial
 envelopes carry a playhead; the LFO rings run. The harmonic LFO pop-up is
-gone. Values are printed under the
+gone: its controls are the ten rings in MODULATION - drag a ring up or down for
+depth, sideways for rate (shift for fine, wheel for depth, shift-wheel for
+rate) - and the RATE and DEPTH knobs in the PARTIAL box. Unlike every other
+setting, the harmonic LFOs follow their controls on notes already sounding. Values are printed under the
 knobs; hovering still shows the full name and value. Alt-click or double-click
 a knob for its default. The panel and the wear are two bitmaps rendered from
 `tools/polivoks/d2p.js` by `tools/polivoks/make-panel.sh`; the controls are

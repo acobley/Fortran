@@ -316,11 +316,27 @@ private:
 
 //------------------------------------------------------------------------
 /** The ten harmonic LFOs: depth as an arc round a ring, rate in hertz
-    inside it. Click a ring to select that partial. */
+    inside it - and the controls for them. Click a ring to select that
+    partial; drag it up or down for depth, sideways for rate (shift for
+    fine). The drag picks its direction from the first few pixels and keeps
+    it, so a slightly diagonal drag does not change both. */
 class PvRingsOled : public PvOled
 {
 public:
-	PvRingsOled (const VSTGUI::CRect& size, std::function<void (int)> onPick);
+	enum class What { Rate, Depth };
+	enum class Phase { Begin, Change, End };
+	/** Reads a ring's current value, 0..1. */
+	using Getter = std::function<float (int ring, What what)>;
+	/** Sets it; called with Begin before the first change and End after
+	    the last, so the editor can bracket the edit for the host. */
+	using Setter = std::function<void (int ring, What what, float value, Phase phase)>;
+
+	PvRingsOled (const VSTGUI::CRect& size, std::function<void (int)> onPick,
+	             Getter get, Setter set);
+	void onMouseMoveEvent (VSTGUI::MouseMoveEvent& event) override;
+	void onMouseUpEvent (VSTGUI::MouseUpEvent& event) override;
+	void onMouseCancelEvent (VSTGUI::MouseCancelEvent& event) override;
+	void onMouseWheelEvent (VSTGUI::MouseWheelEvent& event) override;
 	void setLfos (const std::array<float, 10>& depth, const std::array<std::string, 10>& rate,
 	              int selected);
 	/** The LFOs' phases while a note sounds: a dot runs round each ring. */
@@ -330,7 +346,17 @@ public:
 protected:
 	void drawContent (VSTGUI::CDrawContext* context) override;
 private:
+	int ringAt (const VSTGUI::CPoint& where) const;
+	void finishDrag ();
+
 	std::function<void (int)> mOnPick;
+	Getter mGet;
+	Setter mSet;
+	int   mDragRing = -1;
+	bool  mDragDecided = false, mDragBegun = false;
+	What  mDragWhat = What::Depth;
+	float mDragStart = 0.f;
+	VSTGUI::CPoint mDragPoint;
 	std::array<float, 10> mDepth {};
 	std::array<std::string, 10> mRate;
 	std::array<float, 10> mPhase {};

@@ -111,6 +111,8 @@ private:
 
 	void showReadoutFor (VSTGUI::CControl* control);
 	void hideReadout ();
+	/** The readout over something that is not a control - a ring. */
+	void showReadoutText (const std::string& text, double anchorX, double top);
 	std::string readoutTextFor (Steinberg::Vst::ParamID tag) const;
 	/** The short form printed on the panel: the readout without its name,
 	    with cutoff as 2.40K rather than 2400 Hz. */
@@ -166,6 +168,7 @@ private:
 
 	int  mSelected = 0;
 	bool mUpdating = false;
+	bool mRingEditing = false;
 };
 
 //------------------------------------------------------------------------

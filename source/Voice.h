@@ -172,6 +172,14 @@ public:
 	    See PORTING-NOTES section 7. */
 	void setLadderEnabled (bool enabled) { mLadderEnabled = enabled; }
 
+	/** The harmonic LFOs' rates (0..1 controls) and depths, pushed to a
+	    sounding note. Unlike the rest of VoiceParams these FOLLOW the knobs
+	    while the note plays: the LFO is this port's own addition, with no
+	    DXi behaviour to keep, and an LFO you cannot hear move as you turn
+	    it is very hard to set. The phase carries on, so changing the rate
+	    does not jump. */
+	void setHarmonicLfo (const float* rate, const float* depth);
+
 	/** Add this voice's output into interleaved stereo. */
 	void render (float* stereo, int numSamples, const FilterInfo& filter);
 

@@ -250,7 +250,42 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 		for (int i = 0; i < 4; ++i)
 			addValue (addKnob (tags[i], xs[i], 540., 18.), xs[i], 569., 9.5);
 	}
-	mRings = new PvRingsOled (CRect (862., 488., 1170., 610.), [this] (int i) { selectPartial (i); });
+	// The rings are the harmonic LFOs' main controls: drag for depth and
+	// rate. The two small knobs in the PARTIAL box do the same for the
+	// selected partial.
+	mRings = new PvRingsOled (
+	    CRect (862., 488., 1170., 610.),
+	    [this] (int i) { if (i != mSelected) selectPartial (i); },
+	    [this] (int ring, PvRingsOled::What w) {
+		    const ParamID tag = static_cast<ParamID> (
+		        (w == PvRingsOled::What::Rate ? kHarmLfoRate1 : kHarmLfoDepth1) + ring);
+		    return mController ? static_cast<float> (mController->getParamNormalized (tag)) : 0.f;
+	    },
+	    [this] (int ring, PvRingsOled::What w, float value, PvRingsOled::Phase phase) {
+		    const ParamID tag = static_cast<ParamID> (
+		        (w == PvRingsOled::What::Rate ? kHarmLfoRate1 : kHarmLfoDepth1) + ring);
+		    if (!mController)
+			    return;
+		    if (phase == PvRingsOled::Phase::Begin)
+		    {
+			    mController->beginEdit (tag);
+			    mRingEditing = true;
+		    }
+		    else if (phase == PvRingsOled::Phase::Change)
+		    {
+			    mController->setParamNormalized (tag, value);   // updates the knobs and screens
+			    mController->performEdit (tag, value);
+		    }
+		    else
+		    {
+			    mController->endEdit (tag);
+			    mRingEditing = false;
+		    }
+		    if (mRingEditing)
+			    showReadoutText (upper (readoutTextFor (tag)), 862. + 16. + ring * 29.5, 470.);
+		    else
+			    hideReadout ();
+	    });
 	frame->addView (mRings);
 
 	// ---- the wear, then the readout over everything ------------------------
@@ -585,6 +620,20 @@ void ForTranEditor::showReadoutFor (CControl* control)
 	mReadout->setViewSize (r);
 	mReadout->setMouseableArea (r);
 	mReadout->setAnchorX (c.getCenter ().x);
+	mReadout->setVisible (true);
+	mReadout->invalid ();
+}
+
+//------------------------------------------------------------------------
+void ForTranEditor::showReadoutText (const std::string& text, double anchorX, double top)
+{
+	if (!mReadout)
+		return;
+	const CRect r (0., top, static_cast<CCoord> (kEditorWidth), top + 16.);
+	mReadout->setText (text);
+	mReadout->setViewSize (r);
+	mReadout->setMouseableArea (r);
+	mReadout->setAnchorX (anchorX);
 	mReadout->setVisible (true);
 	mReadout->invalid ();
 }

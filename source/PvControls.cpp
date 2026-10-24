@@ -825,8 +825,8 @@ void PvEnvOled::drawContent (CDrawContext* context)
 //========================================================================
 // PvRingsOled
 //========================================================================
-PvRingsOled::PvRingsOled (const CRect& size, std::function<void (int)> onPick)
-: PvOled (size), mOnPick (std::move (onPick))
+PvRingsOled::PvRingsOled (const CRect& size, std::function<void (int)> onPick, Getter get, Setter set)
+: PvOled (size), mOnPick (std::move (onPick)), mGet (std::move (get)), mSet (std::move (set))
 {
 	setMouseEnabled (true);
 }
@@ -891,14 +891,84 @@ void PvRingsOled::drawContent (CDrawContext* context)
 	}
 }
 
+int PvRingsOled::ringAt (const CPoint& where) const
+{
+	const CRect r = getViewSize ();
+	const int i = static_cast<int> (std::lround ((where.x - (r.left + 16.)) / 29.5));
+	return (i >= 0 && i < 10) ? i : -1;
+}
+
 void PvRingsOled::onMouseDownEvent (MouseDownEvent& event)
 {
 	if (!event.buttonState.isLeft ())
 		return;
-	const CRect r = getViewSize ();
-	const int i = static_cast<int> (std::lround ((event.mousePosition.x - (r.left + 16.)) / 29.5));
-	if (i >= 0 && i < 10 && mOnPick)
+	const int i = ringAt (event.mousePosition);
+	if (i >= 0 && mOnPick)
 		mOnPick (i);
+	mDragRing = i;
+	mDragDecided = mDragBegun = false;
+	mDragPoint = event.mousePosition;
+	event.consumed = true;
+}
+
+void PvRingsOled::onMouseMoveEvent (MouseMoveEvent& event)
+{
+	if (mDragRing < 0 || !mGet || !mSet)
+		return;
+	const double dx = event.mousePosition.x - mDragPoint.x;
+	const double dy = event.mousePosition.y - mDragPoint.y;
+	if (!mDragDecided)
+	{
+		if (std::abs (dx) < 3. && std::abs (dy) < 3.)
+			return;
+		mDragWhat = std::abs (dy) >= std::abs (dx) ? What::Depth : What::Rate;
+		mDragDecided = true;
+		mDragStart = mGet (mDragRing, mDragWhat);
+		mDragPoint = event.mousePosition;
+		mSet (mDragRing, mDragWhat, mDragStart, Phase::Begin);
+		mDragBegun = true;
+		event.consumed = true;
+		return;
+	}
+	const double range = (event.modifiers.has (ModifierKey::Shift) ? 5. : 1.) * 150.;
+	const double delta = mDragWhat == What::Depth ? -(event.mousePosition.y - mDragPoint.y)
+	                                               : (event.mousePosition.x - mDragPoint.x);
+	mSet (mDragRing, mDragWhat, static_cast<float> (std::clamp (mDragStart + delta / range, 0., 1.)),
+	      Phase::Change);
+	event.consumed = true;
+}
+
+void PvRingsOled::finishDrag ()
+{
+	if (mDragBegun && mSet)
+		mSet (mDragRing, mDragWhat, mGet ? mGet (mDragRing, mDragWhat) : 0.f, Phase::End);
+	mDragRing = -1;
+	mDragDecided = mDragBegun = false;
+}
+
+void PvRingsOled::onMouseUpEvent (MouseUpEvent& event)
+{
+	finishDrag ();
+	event.consumed = true;
+}
+
+void PvRingsOled::onMouseCancelEvent (MouseCancelEvent& event)
+{
+	finishDrag ();
+	event.consumed = true;
+}
+
+/** The wheel changes depth; with shift, rate. */
+void PvRingsOled::onMouseWheelEvent (MouseWheelEvent& event)
+{
+	const int i = ringAt (event.mousePosition);
+	if (i < 0 || !mGet || !mSet)
+		return;
+	const What w = event.modifiers.has (ModifierKey::Shift) ? What::Rate : What::Depth;
+	const float v = std::clamp (mGet (i, w) + static_cast<float> (event.deltaY) * 0.02f, 0.f, 1.f);
+	mSet (i, w, mGet (i, w), Phase::Begin);
+	mSet (i, w, v, Phase::Change);
+	mSet (i, w, v, Phase::End);
 	event.consumed = true;
 }
 

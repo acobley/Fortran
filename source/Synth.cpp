@@ -236,6 +236,18 @@ void Synth::render (float* stereo, int numSamples)
 	if (mFilter.needsRecalculation ())
 		mFilter.calculate ();
 
+	// The harmonic LFOs follow their knobs on notes already sounding - see
+	// Voice::setHarmonicLfo. Compared first, so a still knob costs nothing.
+	if (std::memcmp (mPushedLfoRate, mParams.harmLfoRate, sizeof (mPushedLfoRate)) != 0 ||
+	    std::memcmp (mPushedLfoDepth, mParams.harmLfoDepth, sizeof (mPushedLfoDepth)) != 0)
+	{
+		std::memcpy (mPushedLfoRate, mParams.harmLfoRate, sizeof (mPushedLfoRate));
+		std::memcpy (mPushedLfoDepth, mParams.harmLfoDepth, sizeof (mPushedLfoDepth));
+		for (Voice& v : mVoices)
+			if (v.isActive ())
+				v.setHarmonicLfo (mPushedLfoRate, mPushedLfoDepth);
+	}
+
 	for (Voice& v : mVoices)
 		if (v.isActive ())
 			v.render (stereo, numSamples, mFilter);

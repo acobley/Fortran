@@ -233,6 +233,19 @@ void Voice::noteOff ()
 }
 
 //------------------------------------------------------------------------
+void Voice::setHarmonicLfo (const float* rate, const float* depth)
+{
+	mHarmLfoActive = false;
+	for (int i = 0; i < kNumPartials; ++i)
+	{
+		mHarmLfoStep[i]  = d2PI * harmonicLfoHz (rate[i]) / mSampleRate;
+		mHarmLfoDepth[i] = depth[i];
+		if (mHarmLfoDepth[i] != 0.f)
+			mHarmLfoActive = true;
+	}
+}
+
+//------------------------------------------------------------------------
 void Voice::live (LiveState& out) const
 {
 	out.note = mNoteNumber;

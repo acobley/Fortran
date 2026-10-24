@@ -155,6 +155,11 @@ private:
 	void captureBlock (const float* stereo, int numSamples);
 	void publishLiveState ();
 
+	/** The harmonic LFO settings last pushed to the sounding voices; the
+	    push only happens when one has moved. */
+	float mPushedLfoRate[10]  = {};
+	float mPushedLfoDepth[10] = {};
+
 	mutable std::atomic<unsigned> mLiveSeq {0};
 	LiveState mLivePublished;
 

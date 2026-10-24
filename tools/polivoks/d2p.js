@@ -123,7 +123,7 @@ dyn (() => {
     otext(x, 584, i + 1, i === SEL ? OLED.violet : T.oledText, 'middle', 8);
   }
 });
-otext(870, 603, 'HZ IN THE RING, DEPTH ROUND IT', T.oledText, 'start', 7.5);
+otext(870, 603, 'DRAG A RING: UP / DOWN DEPTH, SIDEWAYS RATE', T.oledText, 'start', 7.5);
 glass(862, 488, 308, 122);
 
 render();
