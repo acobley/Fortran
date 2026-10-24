@@ -23,6 +23,7 @@
 
 #include "Adsr.h"
 #include "FilterInfo.h"
+#include "LiveState.h"
 
 #include <cmath>
 
@@ -180,6 +181,10 @@ public:
 	/** Samples rendered so far - the voice stealer's age measure. */
 	long age () const { return mCurrentSample; }
 
+	/** What this voice is doing, for the panel. Reads values the last
+	    rendered sample left behind; costs nothing to produce. */
+	void live (LiveState& out) const;
+
 private:
 	float renderSample (const FilterInfo& filter);
 
@@ -240,6 +245,15 @@ private:
 	float  mHarmLfoDepth[kNumPartials] = {};
 	bool   mHarmLfoActive = false;
 	Adsr mFormantEnvelope[kNumPartials];
+
+	// -- for the panel: the last sample's values, see live() ---------------
+	double mSampleRate    = 44100.0;
+	long   mReleaseSample = -1;
+	float  mLiveAmp       = 0.f;
+	float  mLiveFilterEnv = 0.f;
+	float  mLiveBin       = static_cast<float> (kFilterBinOrigin);
+	float  mLiveFormant[kNumPartials] = {};
+	float  mLivePartial[kNumPartials] = {};
 
 	FilterInfo::ShapeStates mShapes;
 

@@ -85,6 +85,10 @@ public:
 	/** Bin -> Hz, for the editor. */
 	float binFrequency (int bin) const;
 
+	/** How many bins above the read position partial `k` (0..9) is looked
+	    up - the editor puts the partials' dots on the response there. */
+	static int harmonicOffset (int k);
+
 private:
 	float mFrequency[kNumBins] = {};
 

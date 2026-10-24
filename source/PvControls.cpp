@@ -612,18 +612,65 @@ void PvBarsOled::setLevels (const std::array<float, 10>& levels, int selected)
 	invalid ();
 }
 
+void PvBarsOled::setLive (bool live, const std::array<float, 10>& amplitude)
+{
+	if (live == mLive && (!live || amplitude == mLiveAmp))
+		return;
+	mLive = live;
+	mLiveAmp = amplitude;
+	invalid ();
+}
+
+void PvBarsOled::setWave (const float* samples, int count)
+{
+	if (!samples || count < 2)
+		mWave.clear ();
+	else
+		mWave.assign (samples, samples + count);
+	invalid ();
+}
+
 void PvBarsOled::drawContent (CDrawContext* context)
 {
 	const CRect r = getViewSize ();
 	const double base = r.top + 94.;     // 200 on a screen at y 106
+	const double segH = 5.;
+
+	// the output, faint, behind the bars
+	if (mLive && mWave.size () > 1)
+	{
+		float peak = 1e-6f;
+		for (float v : mWave)
+			peak = std::max (peak, std::abs (v));
+		const double mid = (r.top + 20. + base) / 2., amp = (base - r.top - 24.) / 2.;
+		std::vector<CPoint> pts;
+		const size_t n = mWave.size ();
+		for (size_t i = 0; i < n; ++i)
+			pts.emplace_back (r.left + 6. + (r.getWidth () - 12.) * static_cast<double> (i) / static_cast<double> (n - 1),
+			                  mid - amp * mWave[i] / peak);
+		trace (context, pts, hex (0xeef3ff, 0.22), 1.);
+	}
+
 	for (int i = 0; i < 10; ++i)
 	{
 		const double x = r.left + 48. + i * 44.8;
 		const bool sel = i == mSelected;
-		const int segs = static_cast<int> (std::lround (std::clamp (mLevels[static_cast<size_t> (i)], 0.f, 1.f) * 14.));
+		const float shown = mLive ? mLiveAmp[static_cast<size_t> (i)] : mLevels[static_cast<size_t> (i)];
+		const int segs = static_cast<int> (std::lround (std::clamp (shown, 0.f, 1.f) * 14.));
 		context->setFillColor (sel ? Pv::kAmber : Pv::alpha (Pv::kAmber, 0.5));
 		for (int s = 0; s < segs; ++s)
-			context->drawRect (CRect (x - 13., base - 5. - s * 5., x + 13., base - 5. - s * 5. + 3.4), kDrawFilled);
+			context->drawRect (CRect (x - 13., base - 5. - s * segH, x + 13., base - 5. - s * segH + 3.4), kDrawFilled);
+		if (mLive)
+		{
+			// where the partial is set to, as a tick over its live bar
+			const int set = static_cast<int> (std::lround (std::clamp (mLevels[static_cast<size_t> (i)], 0.f, 1.f) * 14.));
+			if (set > 0)
+			{
+				const double y = base - 5. - (set - 1) * segH;
+				context->setFillColor (Pv::alpha (Pv::kAmber, 0.35));
+				context->drawRect (CRect (x - 13., y, x + 13., y + 1.2), kDrawFilled);
+			}
+		}
 		oledText (context, std::to_string (i + 1), x, r.top + 104., sel ? Pv::kAmber : Pv::kOledText,
 		          SciFi::Align::Centre, 8.);
 	}
@@ -635,22 +682,32 @@ void PvBarsOled::drawContent (CDrawContext* context)
 //========================================================================
 // PvFilterOled
 //========================================================================
-void PvFilterOled::setResponse (std::vector<float> freq, std::vector<float> mag,
-                                const std::array<float, 10>& partialMag, int selected,
-                                const std::string& annotation)
+void PvFilterOled::setResponse (std::vector<float> freq, std::vector<float> mag, const std::string& annotation)
 {
 	mFreq = std::move (freq);
 	mMag = std::move (mag);
-	mPartial = partialMag;
-	mSelected = selected;
 	mAnnotation = annotation;
+	invalid ();
+}
+
+void PvFilterOled::setPartials (const std::array<float, 10>& hz, const std::array<float, 10>& mag,
+                                int selected, double sweepHz, const std::string& caption)
+{
+	if (hz == mPartialHz && mag == mPartialMag && selected == mSelected && sweepHz == mSweepHz &&
+	    caption == mCaption)
+		return;
+	mPartialHz = hz;
+	mPartialMag = mag;
+	mSelected = selected;
+	mSweepHz = sweepHz;
+	mCaption = caption;
 	invalid ();
 }
 
 double PvFilterOled::xOf (double hz) const
 {
 	const CRect r = getViewSize ();
-	return r.left + 6. + std::log (hz / 20.) / std::log (1000.) * (r.getWidth () - 12.);
+	return r.left + 6. + std::log (std::max (hz, 1.) / 20.) / std::log (1000.) * (r.getWidth () - 12.);
 }
 
 double PvFilterOled::yOf (double m) const
@@ -670,10 +727,21 @@ void PvFilterOled::drawContent (CDrawContext* context)
 	fillUnder (context, pts, base, yOf (1.25), Pv::kBlue);
 	trace (context, pts, Pv::kBlue);
 
+	// the sweep: where the fundamental is being read
+	if (mSweepHz > 0.)
+	{
+		const double x = xOf (mSweepHz);
+		context->setFillColor (Pv::alpha (Pv::kAmber, 0.10));
+		context->drawRect (CRect (x - 3., r.top + 18., x + 3., base), kDrawFilled);
+		line (context, CPoint (x, r.top + 18.), CPoint (x, base), Pv::alpha (Pv::kAmber, 0.6), 1.);
+	}
+
 	for (int k = 0; k < 10; ++k)
 	{
-		const double hz = 220. * (k + 1);
-		const CPoint p (xOf (hz), yOf (mPartial[static_cast<size_t> (k)]));
+		const double hz = mPartialHz[static_cast<size_t> (k)];
+		if (hz < 20. || hz > 20000.)
+			continue;
+		const CPoint p (xOf (hz), yOf (mPartialMag[static_cast<size_t> (k)]));
 		line (context, p, CPoint (p.x, base), Pv::alpha (Pv::kAmber, 0.4), 1.);
 		if (k == mSelected)
 		{
@@ -683,6 +751,8 @@ void PvFilterOled::drawContent (CDrawContext* context)
 		else
 			disc (context, p, 2.6, Pv::kAmber);
 	}
+	if (!mCaption.empty ())
+		oledText (context, mCaption, r.left + 8., r.top + 13., Pv::kOledText);
 	oledText (context, mAnnotation, r.right - 8., r.top + 13., Pv::kBlue, SciFi::Align::Right);
 }
 
@@ -701,6 +771,15 @@ void PvEnvOled::setEnvelope (std::vector<float> shape, double keyUp,
 	mKeyUp = keyUp;
 	mCaption = caption;
 	mAnnotation = annotation;
+	invalid ();
+}
+
+void PvEnvOled::setPlayhead (double position, double value)
+{
+	if (position < 0. && mPlayPos < 0.)
+		return;
+	mPlayPos = position;
+	mPlayValue = value;
 	invalid ();
 }
 
@@ -728,6 +807,15 @@ void PvEnvOled::drawContent (CDrawContext* context)
 		context->drawLine (CPoint (kx, r.top + (mLabelled ? 18. : 4.)), CPoint (kx, r.bottom - 4.));
 	}
 	trace (context, pts, mColour);
+	if (mPlayPos >= 0.)
+	{
+		const double x = x0 + std::min (mPlayPos, 1.) * (x1 - x0);
+		const double y = base - std::clamp (mPlayValue, 0., 1.) * span;
+		line (context, CPoint (x, r.top + (mLabelled ? 18. : 4.)), CPoint (x, base), Pv::alpha (mColour, 0.35), 1.);
+		disc (context, CPoint (x, y), 6., Pv::alpha (mColour, 0.25));
+		disc (context, CPoint (x, y), 3., hex (0xffffff));
+		ring (context, CPoint (x, y), 3., mColour, 1.2);
+	}
 	if (!mCaption.empty ())
 		oledText (context, mCaption, r.left + 8., r.top + 13., Pv::kOledText);
 	if (!mAnnotation.empty ())
@@ -751,6 +839,15 @@ void PvRingsOled::setLfos (const std::array<float, 10>& depth, const std::array<
 	mDepth = depth;
 	mRate = rate;
 	mSelected = selected;
+	invalid ();
+}
+
+void PvRingsOled::setPhases (bool live, const std::array<float, 10>& phase)
+{
+	if (live == mLive && (!live || phase == mPhase))
+		return;
+	mLive = live;
+	mPhase = phase;
 	invalid ();
 }
 
@@ -780,6 +877,14 @@ void PvRingsOled::drawContent (CDrawContext* context)
 				context->drawGraphicsPath (p, CDrawContext::kPathStroked);
 			}
 			oledText (context, mRate[static_cast<size_t> (i)], c.x, c.y + 4., Pv::kViolet, SciFi::Align::Centre, 7.);
+			if (mLive)
+			{
+				// the LFO itself, running round the ring
+				const double deg = mPhase[static_cast<size_t> (i)] * 180. / kPi;
+				const CPoint d = pol (c, rr, deg);
+				disc (context, d, 4., Pv::alpha (Pv::kViolet, 0.3));
+				disc (context, d, 2.2, hex (0xffffff));
+			}
 		}
 		oledText (context, std::to_string (i + 1), c.x, r.top + 96., sel ? Pv::kViolet : Pv::kOledText,
 		          SciFi::Align::Centre, 8.);

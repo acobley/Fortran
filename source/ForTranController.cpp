@@ -329,6 +329,17 @@ tresult PLUGIN_API ForTranController::notify (IMessage* message)
 			for (auto* editor : mEditors)
 				editor->setActiveVoices (static_cast<int> (voices));
 
+		const void* liveData = nullptr;
+		uint32 liveBytes = 0;
+		if (message->getAttributes ()->getBinary (kForTranLiveAttribute, liveData, liveBytes) == kResultOk &&
+		    liveData && liveBytes == sizeof (LiveState))
+		{
+			LiveState live;
+			std::memcpy (&live, liveData, sizeof (live));
+			for (auto* editor : mEditors)
+				editor->setLiveState (live);
+		}
+
 		const void* data = nullptr;
 		uint32 bytes = 0;
 		if (message->getAttributes ()->getBinary (kForTranWaveAttribute, data, bytes) == kResultOk &&

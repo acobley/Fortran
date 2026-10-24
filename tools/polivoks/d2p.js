@@ -43,7 +43,7 @@ chevron(548, 252);
 // ---- FILTER ---------------------------------------------------------------
 section(556, 72, 340, 360, 'SPECTRAL FILTER');
 lamp(844, 94, 0); text(882, 98, 'BYP', { size: 9, anchor: 'end' });
-filterOled(570, 106, 312, 108, { sel: 3, label: 'AT A3', right: '2.40K' });
+filterOled(570, 106, 312, 108, { sel: 3, label: ' ', right: '2.40K' });  // caption drawn live by the plug-in
 selector(604, 258, 11, ['OFF', 'ON'], 1, { label: 'LP' });
 selector(682, 258, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 0, { label: 'HP', ns: 7.5, lr: 20 });
 selector(760, 258, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 1, { label: 'COMB', ns: 7.5, lr: 20 });

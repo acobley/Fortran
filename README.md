@@ -60,7 +60,12 @@ OLEDs and the 70s sci-fi lettering, lightly worn. The partial bank shows every
 partial's level, phase, invert and envelope switch at once; click a numbered
 ring (or an LFO ring, or ‹ ›) to put that partial's envelope and harmonic LFO
 in the PARTIAL box, and **Copy n to all** copies that box to the other nine.
-The harmonic LFO pop-up and the scope are gone. Values are printed under the
+The screens are live while a note sounds (the newest note): the partial bars
+show each partial's real output over a tick at its set level, with the output
+waveform faint behind them; the filter's dots slide along the response as the
+filter envelope sweeps, with a marker at the sweep; the amp and partial
+envelopes carry a playhead; the LFO rings run. The harmonic LFO pop-up is
+gone. Values are printed under the
 knobs; hovering still shows the full name and value. Alt-click or double-click
 a knob for its default. The panel and the wear are two bitmaps rendered from
 `tools/polivoks/d2p.js` by `tools/polivoks/make-panel.sh`; the controls are

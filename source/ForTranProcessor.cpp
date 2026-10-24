@@ -326,7 +326,13 @@ tresult PLUGIN_API ForTranProcessor::notify (IMessage* message)
 		{
 			FReleaser releaser (reply);
 			reply->setMessageID (kForTranWaveDataMessage);
-			reply->getAttributes ()->setInt (kForTranVoicesAttribute, mSynth.activeVoiceCount ());
+			LiveState live;
+			if (mSynth.readLiveState (live))
+			{
+				reply->getAttributes ()->setInt (kForTranVoicesAttribute, live.voices);
+				reply->getAttributes ()->setBinary (kForTranLiveAttribute, &live,
+				                                    static_cast<uint32> (sizeof (live)));
+			}
 			if (n > 0)
 				reply->getAttributes ()->setBinary (
 				    kForTranWaveAttribute, frame,

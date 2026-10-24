@@ -244,6 +244,44 @@ void Synth::render (float* stereo, int numSamples)
 	mSampleClock += numSamples;
 
 	captureBlock (stereo, numSamples);
+	publishLiveState ();
+}
+
+//------------------------------------------------------------------------
+// Once a block: the newest sounding voice, for the panel's animations.
+//------------------------------------------------------------------------
+void Synth::publishLiveState ()
+{
+	LiveState s;
+	const Voice* newest = nullptr;
+	for (const Voice& v : mVoices)
+		if (v.isActive ())
+		{
+			++s.voices;
+			if (!newest || v.age () < newest->age ())
+				newest = &v;
+		}
+	if (newest)
+		newest->live (s);
+
+	mLiveSeq.fetch_add (1, std::memory_order_acq_rel);
+	mLivePublished = s;
+	mLiveSeq.fetch_add (1, std::memory_order_release);
+}
+
+//------------------------------------------------------------------------
+bool Synth::readLiveState (LiveState& out) const
+{
+	for (int attempt = 0; attempt < 4; ++attempt)
+	{
+		const unsigned before = mLiveSeq.load (std::memory_order_acquire);
+		if (before & 1u)
+			continue;
+		out = mLivePublished;
+		if (mLiveSeq.load (std::memory_order_acquire) == before)
+			return true;
+	}
+	return false;
 }
 
 //------------------------------------------------------------------------

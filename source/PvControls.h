@@ -236,32 +236,45 @@ protected:
 };
 
 //------------------------------------------------------------------------
-/** Partial levels as segmented bars, the selected one bright. */
+/** Partial levels as segmented bars, the selected one bright. While a
+    note sounds the bars show what each partial is really putting out -
+    envelope, LFO and filter included - over a tick at its set level, with
+    the output waveform faint behind them. */
 class PvBarsOled : public PvOled
 {
 public:
 	using PvOled::PvOled;
 	void setLevels (const std::array<float, 10>& levels, int selected);
+	/** `live` false returns the bars to the set levels. */
+	void setLive (bool live, const std::array<float, 10>& amplitude);
+	void setWave (const float* samples, int count);
 	CLASS_METHODS (PvBarsOled, VSTGUI::CView)
 protected:
 	void drawContent (VSTGUI::CDrawContext* context) override;
 private:
 	std::array<float, 10> mLevels {};
+	std::array<float, 10> mLiveAmp {};
+	bool mLive = false;
+	std::vector<float> mWave;
 	int mSelected = 0;
 };
 
 //------------------------------------------------------------------------
 /** The filter's combined response on a log frequency axis, 20 Hz - 20 kHz,
-    with the ten partials of an A3 standing on it. */
+    with the ten partials standing on it where the filter is reading them.
+    The filter envelope sweeps that reading point, so while a note sounds
+    the dots slide along the curve and a marker shows the sweep. */
 class PvFilterOled : public PvOled
 {
 public:
 	using PvOled::PvOled;
-	/** `freq` and `mag` are the filter's bins; `partialMag` is the response
-	    at k x 220 Hz. Magnitudes are already scaled so 1 is full height. */
-	void setResponse (std::vector<float> freq, std::vector<float> mag,
-	                  const std::array<float, 10>& partialMag, int selected,
-	                  const std::string& annotation);
+	/** `freq` and `mag` are the filter's bins, magnitudes scaled so 1 is
+	    full height. */
+	void setResponse (std::vector<float> freq, std::vector<float> mag, const std::string& annotation);
+	/** Where the ten partials are being read, and the sweep's position in
+	    Hz (negative for none). */
+	void setPartials (const std::array<float, 10>& hz, const std::array<float, 10>& mag,
+	                  int selected, double sweepHz, const std::string& caption);
 	CLASS_METHODS (PvFilterOled, VSTGUI::CView)
 protected:
 	void drawContent (VSTGUI::CDrawContext* context) override;
@@ -269,9 +282,11 @@ private:
 	double xOf (double hz) const;
 	double yOf (double m) const;
 	std::vector<float> mFreq, mMag;
-	std::array<float, 10> mPartial {};
+	std::array<float, 10> mPartialHz {};
+	std::array<float, 10> mPartialMag {};
 	int mSelected = 0;
-	std::string mAnnotation;
+	double mSweepHz = -1.;
+	std::string mAnnotation, mCaption;
 };
 
 //------------------------------------------------------------------------
@@ -284,6 +299,9 @@ public:
 	PvEnvOled (const VSTGUI::CRect& size, const VSTGUI::CColor& colour, bool labelled);
 	void setEnvelope (std::vector<float> shape, double keyUp,
 	                  const std::string& caption, const std::string& annotation);
+	/** Where a sounding note is on the plot (0..1 across) and the value the
+	    envelope has there; a negative position hides the playhead. */
+	void setPlayhead (double position, double value);
 	CLASS_METHODS (PvEnvOled, VSTGUI::CView)
 protected:
 	void drawContent (VSTGUI::CDrawContext* context) override;
@@ -292,6 +310,7 @@ private:
 	bool mLabelled;
 	std::vector<float> mShape;
 	double mKeyUp = -1.;
+	double mPlayPos = -1., mPlayValue = 0.;
 	std::string mCaption, mAnnotation;
 };
 
@@ -304,6 +323,8 @@ public:
 	PvRingsOled (const VSTGUI::CRect& size, std::function<void (int)> onPick);
 	void setLfos (const std::array<float, 10>& depth, const std::array<std::string, 10>& rate,
 	              int selected);
+	/** The LFOs' phases while a note sounds: a dot runs round each ring. */
+	void setPhases (bool live, const std::array<float, 10>& phase);
 	void onMouseDownEvent (VSTGUI::MouseDownEvent& event) override;
 	CLASS_METHODS (PvRingsOled, VSTGUI::CView)
 protected:
@@ -312,6 +333,8 @@ private:
 	std::function<void (int)> mOnPick;
 	std::array<float, 10> mDepth {};
 	std::array<std::string, 10> mRate;
+	std::array<float, 10> mPhase {};
+	bool mLive = false;
 	int mSelected = 0;
 };
 

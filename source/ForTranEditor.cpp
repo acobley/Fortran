@@ -265,12 +265,13 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 	refreshValues ();
 	refreshHeader ();
 
+	// 30 ms: the animations want more than the scope's old 20 fps.
 	mTimer = makeOwned<CVSTGUITimer> (
 	    [this] (CVSTGUITimer*) {
 		    if (mController)
 			    mController->requestWaveFrame ();
 		    refreshHeader ();
-	    }, 50, true);
+	    }, 30, true);
 
 	return true;
 }
@@ -599,7 +600,116 @@ void ForTranEditor::hideReadout ()
 }
 
 //------------------------------------------------------------------------
-void ForTranEditor::setLiveWaveform (const float*, int) {}
+void ForTranEditor::setLiveWaveform (const float* samples, int count)
+{
+	if (mBars && mLiveOn)
+		mBars->setWave (samples, count);
+}
+
+//------------------------------------------------------------------------
+void ForTranEditor::setLiveState (const LiveState& state)
+{
+	mLive = state;
+	const bool wasOn = mLiveOn;
+	mLiveOn = state.voices > 0 && state.note >= 0;
+
+	if (mVoiceMeter)
+		mVoiceMeter->setVoices (std::clamp (state.voices, 0, 16));
+
+	if (mBars)
+	{
+		// Divided by the response's peak, so a partial sitting in the pass
+		// band at full envelope reads at its set level.
+		std::array<float, 10> amp {};
+		for (int k = 0; k < 10; ++k)
+			amp[static_cast<size_t> (k)] = state.partialAmp[k] / std::max (mCurvePeak, 1e-6f);
+		mBars->setLive (mLiveOn, amp);
+		if (!mLiveOn && wasOn)
+			mBars->setWave (nullptr, 0);
+	}
+
+	refreshPartialDots ();
+
+	// Playheads: held notes park at the key-up line, released ones run on
+	// through the release.
+	PvEnvOled* screens[2] = { mAmpOled, mPartialOled };
+	const double values[2] = { state.ampEnv, state.formantEnv[std::clamp (mSelected, 0, 9)] };
+	for (int i = 0; i < 2; ++i)
+	{
+		if (!screens[i])
+			continue;
+		if (!mLiveOn || mPlotTotal[i] <= 0. || mPlotKeyUp[i] < 0.)
+		{
+			screens[i]->setPlayhead (-1., 0.);
+			continue;
+		}
+		const double t = (state.sinceRelease < 0.f)
+		                     ? std::min (static_cast<double> (state.elapsed), mPlotKeyUp[i])
+		                     : mPlotKeyUp[i] + state.sinceRelease;
+		screens[i]->setPlayhead (std::clamp (t / mPlotTotal[i], 0., 1.), values[i]);
+	}
+
+	if (mRings)
+	{
+		std::array<float, 10> phase {};
+		for (int k = 0; k < 10; ++k)
+			phase[static_cast<size_t> (k)] = state.lfoPhase[k];
+		mRings->setPhases (mLiveOn, phase);
+	}
+}
+
+//------------------------------------------------------------------------
+float ForTranEditor::curveAt (double bin) const
+{
+	if (mCurve.empty ())
+		return 0.f;
+	const double b = std::clamp (bin, 0., static_cast<double> (mCurve.size () - 1));
+	const size_t lo = static_cast<size_t> (b);
+	const size_t hi = std::min (lo + 1, mCurve.size () - 1);
+	const float f = static_cast<float> (b - static_cast<double> (lo));
+	return mCurve[lo] + f * (mCurve[hi] - mCurve[lo]);
+}
+
+//------------------------------------------------------------------------
+float ForTranEditor::frequencyAt (double bin) const
+{
+	const double b = std::clamp (bin, 0., static_cast<double> (FilterInfo::kNumBins - 1));
+	const int lo = static_cast<int> (b);
+	const int hi = std::min (lo + 1, FilterInfo::kNumBins - 1);
+	const double f = b - lo;
+	// The bins are a quarter-semitone apart, so interpolate in log frequency.
+	return static_cast<float> (mFilter.binFrequency (lo) *
+	                           std::pow (mFilter.binFrequency (hi) / mFilter.binFrequency (lo), f));
+}
+
+//------------------------------------------------------------------------
+void ForTranEditor::refreshPartialDots ()
+{
+	if (!mFilterOled)
+		return;
+	// At rest the voice reads the filter at A440 (bin 276); the filter
+	// envelope sweeps that down as it opens. Each partial is looked up a
+	// fixed number of bins above - see FilterInfo::harmonicOffset.
+	const double bin = mLiveOn ? static_cast<double> (mLive.filterBin)
+	                           : static_cast<double> (Voice::kFilterBinOrigin);
+	std::array<float, 10> hz {}, mag {};
+	for (int k = 0; k < 10; ++k)
+	{
+		const double b = bin + FilterInfo::harmonicOffset (k);
+		hz[static_cast<size_t> (k)] = frequencyAt (b);
+		mag[static_cast<size_t> (k)] = curveAt (b);
+	}
+	std::string caption = "AT REST";
+	if (mLiveOn)
+	{
+		static const char* const kNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+		char buf[40];
+		std::snprintf (buf, sizeof (buf), "%s%d  SWEEP %d %%", kNames[mLive.note % 12], mLive.note / 12 - 1,
+		               static_cast<int> (std::lround (std::clamp (mLive.filterEnv, 0.f, 1.f) * 100.f)));
+		caption = buf;
+	}
+	mFilterOled->setPartials (hz, mag, mSelected, mLiveOn ? frequencyAt (bin) : -1., caption);
+}
 
 //------------------------------------------------------------------------
 void ForTranEditor::setActiveVoices (int count)
@@ -701,23 +811,12 @@ void ForTranEditor::refreshDisplays ()
 		}
 		// Scaled so the loudest point is full height: the screen shows the
 		// shape. The figure in the corner says where the cutoff is.
-		if (peak > 1e-9f)
-			for (auto& m : mag)
-				m /= peak;
-
-		// The ten partials of an A3, read off the nearest bin.
-		std::array<float, 10> partial {};
-		for (int k = 0; k < 10; ++k)
-		{
-			const float hz = 220.f * static_cast<float> (k + 1);
-			int best = 0;
-			for (int b = 1; b < FilterInfo::kNumBins; ++b)
-				if (std::abs (freq[static_cast<size_t> (b)] - hz) < std::abs (freq[static_cast<size_t> (best)] - hz))
-					best = b;
-			partial[static_cast<size_t> (k)] = mag[static_cast<size_t> (best)];
-		}
-		mFilterOled->setResponse (std::move (freq), std::move (mag), partial, mSelected,
-		                          valueTextFor (kCutoff));
+		mCurvePeak = peak > 1e-9f ? peak : 1.f;
+		for (auto& m : mag)
+			m /= mCurvePeak;
+		mCurve = mag;
+		mFilterOled->setResponse (std::move (freq), std::move (mag), valueTextFor (kCutoff));
+		refreshPartialDots ();
 	}
 }
 
@@ -789,6 +888,8 @@ void ForTranEditor::refreshEnvelopes ()
 		std::vector<float> shape (kPoints);
 		double keyUp = -1.;
 		const double seconds = traceEnvelope (spec, shape.data (), kPoints, &keyUp);
+		mPlotTotal[i] = seconds;
+		mPlotKeyUp[i] = keyUp >= 0. ? keyUp * seconds : -1.;
 		char time[24] = {};
 		if (!spec.enabled)
 			std::snprintf (time, sizeof (time), "off");

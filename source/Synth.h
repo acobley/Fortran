@@ -108,6 +108,10 @@ public:
 	    call from any thread that is not the audio thread. */
 	int readWaveform (float* out, int maxSamples) const;
 
+	/** The newest sounding voice, as of the last block - see LiveState.h.
+	    Same seqlock as the waveform; false if every attempt was torn. */
+	bool readLiveState (LiveState& out) const;
+
 private:
 	Voice* allocateVoice (int noteNumber);
 
@@ -149,6 +153,10 @@ private:
 	bool mHadNoteOn       = false;
 
 	void captureBlock (const float* stereo, int numSamples);
+	void publishLiveState ();
+
+	mutable std::atomic<unsigned> mLiveSeq {0};
+	LiveState mLivePublished;
 
 	// Frequencies are computed rather than read from the DXi's m_adFreq[128]
 	// table, which was built with exactly this formula in initTables().

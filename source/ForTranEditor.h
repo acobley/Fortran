@@ -30,6 +30,7 @@
 #include "FilterInfo.h"
 #include "ForTranControls.h"
 #include "ForTranParams.h"
+#include "LiveState.h"
 #include "PvControls.h"
 
 #include "public.sdk/source/vst/vstguieditor.h"
@@ -62,10 +63,13 @@ public:
 
 	void updateControl (Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue normalized);
 
-	/** A frame of the real output, from the processor. The Polivoks panel
-	    has no scope, so this is ignored; the message still carries the
-	    voice count below. */
+	/** A frame of the real output, from the processor. Drawn faint behind
+	    the partial bars while a note sounds. */
 	void setLiveWaveform (const float* samples, int count);
+
+	/** What the newest voice is doing, 30 times a second: it drives the
+	    bars, the filter sweep, the envelope playheads and the LFO rings. */
+	void setLiveState (const LiveState& state);
 
 	/** How many voices are sounding, for the header's meter. */
 	void setActiveVoices (int count);
@@ -96,6 +100,12 @@ private:
 	static bool affectsEnvelopes (Steinberg::Vst::ParamID tag);
 	EnvelopeSpec envelopeSpec (int which) const;   // 0 amp, 1 filter, 2 selected partial
 	void refreshLfos ();
+	/** Put the partials' dots where the filter is reading them - at rest,
+	    or wherever the sounding note's filter envelope has swept to. */
+	void refreshPartialDots ();
+	/** Response value and frequency at a fractional bin. */
+	float curveAt (double bin) const;
+	float frequencyAt (double bin) const;
 	void refreshValues ();
 	void refreshHeader ();
 
@@ -143,6 +153,14 @@ private:
 	VSTGUI::CControl* mEditing = nullptr;
 
 	FilterInfo mFilter;
+	std::vector<float> mCurve;      // the combined response per bin, peak = 1
+	float mCurvePeak = 1.f;         // what it was divided by
+	LiveState mLive;
+	bool mLiveOn = false;           // a note is sounding
+	/** Key-up time and length of the amp (0) and partial (1) plots, in
+	    seconds, so a sounding note can be placed on them. */
+	double mPlotKeyUp[2] = { -1., -1. };
+	double mPlotTotal[2] = { 0., 0. };
 	/** Asks the processor for its voice count 20 times a second. */
 	VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> mTimer;
 

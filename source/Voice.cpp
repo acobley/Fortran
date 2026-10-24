@@ -67,6 +67,8 @@ void Voice::noteOn (int noteNumber, double frequency, int velocity,
 	mReleased      = false;
 	mNoteNumber    = noteNumber;
 	mCurrentSample = 0;
+	mReleaseSample = -1;
+	mSampleRate    = sampleRate;
 
 	mTheta = 0.0;
 	mStep  = d2PI * frequency / sampleRate;
@@ -227,6 +229,26 @@ void Voice::noteOff ()
 	for (int i = 0; i < kNumPartials; ++i)
 		mFormantEnvelope[i].noteOff ();
 	mReleased = true;
+	mReleaseSample = mCurrentSample;
+}
+
+//------------------------------------------------------------------------
+void Voice::live (LiveState& out) const
+{
+	out.note = mNoteNumber;
+	out.elapsed = static_cast<float> (mCurrentSample / mSampleRate);
+	out.sinceRelease = (mReleaseSample >= 0)
+	                       ? static_cast<float> ((mCurrentSample - mReleaseSample) / mSampleRate)
+	                       : -1.f;
+	out.ampEnv = mLiveAmp;
+	out.filterEnv = mLiveFilterEnv;
+	out.filterBin = mLiveBin;
+	for (int k = 0; k < kNumPartials; ++k)
+	{
+		out.formantEnv[k] = mLiveFormant[k];
+		out.partialAmp[k] = std::fabs (mLivePartial[k]);
+		out.lfoPhase[k] = static_cast<float> (std::fmod (mHarmLfoTheta[k], d2PI));
+	}
 }
 
 //------------------------------------------------------------------------
@@ -245,8 +267,9 @@ float Voice::renderSample (const FilterInfo& filter)
 	// magnitude and phase changed abruptly hundreds of times a note. The bin
 	// is fractional here and the response is interpolated between the two
 	// bins either side of it. See PORTING-NOTES section 6.
-	double binF = kFilterBinOrigin - static_cast<double> (kFilterSweepBins)
-	                                     * mFilterEnvelope.nextValue ();
+	const float filterEnv = mFilterEnvelope.nextValue ();
+	mLiveFilterEnv = filterEnv;
+	double binF = kFilterBinOrigin - static_cast<double> (kFilterSweepBins) * filterEnv;
 	// The envelope overshoots 1.0 by one sample, which is the only way this
 	// goes negative now that the sweep spans exactly the bins that exist.
 	// The DXi clamped that one sample to bin 1; clamping to 0 keeps the
@@ -259,6 +282,7 @@ float Voice::renderSample (const FilterInfo& filter)
 	if (lower > FilterInfo::kNumBins - 2)
 		lower = FilterInfo::kNumBins - 2;
 	const float frac = static_cast<float> (binF - lower);
+	mLiveBin = static_cast<float> (binF);
 
 	if (lower != mFilterCacheBin)
 	{
@@ -299,8 +323,11 @@ float Voice::renderSample (const FilterInfo& filter)
 		for (int k = 0; k < kNumPartials; ++k)
 		{
 			const double partialTheta = (k + 1) * mTheta + theta[k] + mHarmPhase[k];
-			sum += mFormantEnvelope[k].nextValue () * std::sin (partialTheta)
+			const float fe = mFormantEnvelope[k].nextValue ();
+			sum += fe * std::sin (partialTheta)
 			       * mHarmLevel[k] * magnitude[k];
+			mLiveFormant[k] = fe;
+			mLivePartial[k] = fe * mHarmLevel[k] * magnitude[k];
 		}
 	}
 	else
@@ -317,13 +344,17 @@ float Voice::renderSample (const FilterInfo& filter)
 			const double lfo = (mHarmLfoDepth[k] != 0.f)
 			                       ? 1.0 + mHarmLfoDepth[k] * std::sin (mHarmLfoTheta[k])
 			                       : 1.0;
-			sum += lfo * mFormantEnvelope[k].nextValue () * std::sin (partialTheta)
+			const float fe = mFormantEnvelope[k].nextValue ();
+			sum += lfo * fe * std::sin (partialTheta)
 			       * mHarmLevel[k] * magnitude[k];
+			mLiveFormant[k] = fe;
+			mLivePartial[k] = static_cast<float> (lfo * fe * mHarmLevel[k] * magnitude[k]);
 			mHarmLfoTheta[k] += mHarmLfoStep[k];
 		}
 	}
 
 	const float envVolume = mAmpEnvelope.nextValue ();
+	mLiveAmp = envVolume;
 	double samp = envVolume * (1.0 + tremolo) * mVolume * sum;
 
 	// -- the fixed Moog ladder, per voice --------------------------------

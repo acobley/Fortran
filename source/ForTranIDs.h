@@ -35,6 +35,8 @@ static const char* const kForTranWaveAttribute      = "Wave";
 /** Sent with every reply, frame or no frame: how many voices are sounding,
     for the panel's voice meter. */
 static const char* const kForTranVoicesAttribute    = "Voices";
+/** A LiveState, as bytes: what the newest voice is doing. */
+static const char* const kForTranLiveAttribute      = "Live";
 
 //------------------------------------------------------------------------
 } // namespace ForTran

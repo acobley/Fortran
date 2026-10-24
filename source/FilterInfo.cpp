@@ -281,6 +281,12 @@ const float* FilterInfo::magnitudeCurve (Shape shape) const
 }
 
 //------------------------------------------------------------------------
+int FilterInfo::harmonicOffset (int k)
+{
+	return kHarmonicOffset[std::clamp (k, 0, kNumParts - 1)];
+}
+
+//------------------------------------------------------------------------
 float FilterInfo::binFrequency (int bin) const
 {
 	return mFrequency[std::clamp (bin, 0, kNumBins - 1)];
