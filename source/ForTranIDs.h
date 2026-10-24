@@ -32,6 +32,9 @@ static const char* const kForTranSampleRateAttribute = "SampleRate";
 static const char* const kForTranWaveRequestMessage = "ForTranWaveRequest";
 static const char* const kForTranWaveDataMessage    = "ForTranWaveData";
 static const char* const kForTranWaveAttribute      = "Wave";
+/** Sent with every reply, frame or no frame: how many voices are sounding,
+    for the panel's voice meter. */
+static const char* const kForTranVoicesAttribute    = "Voices";
 
 //------------------------------------------------------------------------
 } // namespace ForTran

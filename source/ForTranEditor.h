@@ -1,24 +1,27 @@
 //------------------------------------------------------------------------
-// ForTran - editor
+// ForTran - editor: the Polivoks panel
 //
-// Recreates IDD_PROPPAGE from ForTran.rc. The dialog is 556 x 232 dialog
-// units in MS Sans Serif 8pt, so positions convert with
+// 1200 x 640. A matte black panel with white silkscreen, black knurled
+// knobs, chicken-head rotary switches, red jewel lamps and small colour
+// OLEDs behind glass, lettered throughout in Andy's 70s sci-fi face, with a
+// light studio-worn finish. The design is Designs/
+// ForTran-Polivoks-2b-SpectrumBank-StudioWorn.png; its source is
+// tools/polivoks/d2p.js.
 //
-//     x_px = x_dlu * 1.5        y_px = y_dlu * 1.625
+// Three layers, bottom to top:
 //
-// The canvas is 1064 x 408. The original artwork is 840 x 388;
-// tools/make-background.py grows it at the bottom so the painted word
-// HARMONICS clears the buttons that used to cover it, and on the right to
-// carry three envelope displays the DXi had no counterpart for. The Windows
-// dialog was 834 x 377 and clipped its own backdrop; this shows all of it.
+//   resource/pv_panel.png  everything that never changes - boxes, titles,
+//                          legends, printed knob scales, OLED bezels. 2x.
+//   the controls           drawn with paths (PvControls), at the very
+//                          coordinates d2p.js uses. Change one, change both.
+//   resource/pv_wear.png   dust, hairlines, polish and fingerprints, as a
+//                          transparent layer the mouse passes through. 2x.
 //
-// Everything from the .rc keeps its original position. The new panels live
-// beyond x 840 and are laid out in pixels, since they have no dialog units
-// to convert from.
-//
-// The declared WIDTH AND HEIGHT of most controls are fiction - the knobs
-// and the buttons resize themselves at runtime with SWP_NOMOVE, so only x
-// and y survive. See PORTING-NOTES section 3.
+// The ten partials share ONE editing box, as the DXi's formant knobs did:
+// the numbered rings choose which partial the box (and the selected bar,
+// dot and ring on the OLEDs) is showing. That choice is editor state, not a
+// parameter. Everything else is on the panel at once - the partial bank
+// has every partial's level, phase, invert and envelope switch.
 //------------------------------------------------------------------------
 
 #pragma once
@@ -27,11 +30,13 @@
 #include "FilterInfo.h"
 #include "ForTranControls.h"
 #include "ForTranParams.h"
+#include "PvControls.h"
 
 #include "public.sdk/source/vst/vstguieditor.h"
 
 #include <map>
 #include <string>
+#include <vector>
 
 namespace ForTran {
 
@@ -40,7 +45,6 @@ class ForTranController;
 //------------------------------------------------------------------------
 class ForTranEditor : public Steinberg::Vst::VSTGUIEditor,
                      public VSTGUI::IControlListener,
-                     public VSTGUI::IKeyboardHook,
                      public IHoverListener
 {
 public:
@@ -56,141 +60,93 @@ public:
 	// IHoverListener
 	void controlHovered (VSTGUI::CControl* control, bool entered) SMTG_OVERRIDE;
 
-	// IKeyboardHook - Escape closes the harmonic LFO panel. A hook rather
-	// than onKeyboardEvent on the panel itself, because that would need the
-	// panel to hold keyboard focus and hosts do not reliably give a
-	// plug-in editor's subviews focus.
-	void onKeyboardEvent (VSTGUI::KeyboardEvent& event, VSTGUI::CFrame* frame) SMTG_OVERRIDE;
-
 	void updateControl (Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue normalized);
 
-	/** A frame of the real output, from the processor. Overrides the
-	    parameter-derived wave until a control is next touched. */
+	/** A frame of the real output, from the processor. The Polivoks panel
+	    has no scope, so this is ignored; the message still carries the
+	    voice count below. */
 	void setLiveWaveform (const float* samples, int count);
 
-	/** 840 of artwork plus a 224 px strip on the right for the envelope
-	    displays. Keep this in step with WIDEN in tools/make-background.py. */
-	static const int kEditorWidth  = 1064;
+	/** How many voices are sounding, for the header's meter. */
+	void setActiveVoices (int count);
 
-	/** The three envelope panels: amplitude, filter, and whichever harmonic
-	    the formant selector is on. */
-	static const int kEnvPanelX      = 852;
-	static const int kEnvPanelWidth  = 200;
-	static const int kEnvPanelHeight = 102;
-	/** Tightened from 24/24 to make room below the panels for the output
-	    trim and the LFO button; the three panels now end at y 340. */
-	static const int kEnvPanelTop    = 6;
-	static const int kEnvPanelGap    = 14;
-
-	/** The band below the envelope panels: four controls in a row with
-	    their names underneath, then the button that summons the LFO panel.
-	    Labels go under rather than beside, because four of them side by
-	    side will not fit across 200 px any other way. */
-	static const int kStripRowTop    = 346;   // knobs
-	static const int kStripLabelTop  = 377;   // their names
-	static const int kLfoButtonTop   = 390;
-
-	/** Centres of the four, evenly across the 200 px strip: 852 + 200(i+½)/4.
-	    Portamento made this a fourth column; at 50 px apart the labels have
-	    to be narrower than they were, which is why the glide one reads
-	    "Glide" rather than its full name. The readout says the full name. */
-	static const int kStripCol1      = 877;   // output
-	static const int kStripCol2      = 927;   // pan
-	static const int kStripCol3      = 977;   // portamento
-	static const int kStripCol4      = 1027;  // ladder
-
-	/** Half-width of a label box under the strip. 24, not 33, since there
-	    are four of them now. */
-	static const int kStripLabelHalf = 24;
-
-	/** The harmonic LFO panel. Ten columns on the same 30 px pitch the
-	    harmonic sliders use, two rows of knobs, centred over the window. */
-	static const int kLfoPanelWidth  = 372;
-	static const int kLfoPanelHeight = 146;
-	static const int kLfoColumnPitch = 30;
-	static const int kLfoColumn0     = 56;   // panel-local x of harmonic 1
-	/** 388 in the original artwork; 408 here. The painted word HARMONICS sat
-	    under the harmonic invert buttons, so tools/make-background.py moves
-	    it down and grows the panel to suit. Keep this in step with the PNG. */
-	static const int kEditorHeight = 408;
+	static const int kEditorWidth  = 1200;
+	static const int kEditorHeight = 640;
 
 private:
-	VSTGUI::CBitmap* bitmap (const char* name);
+	VSTGUI::CBitmap* bitmap2x (const char* name);
 
-	void addKnob (Steinberg::Vst::ParamID tag, double xDlu, double yDlu);
-	/** A knob placed in pixels inside `parent`, for the LFO panel, whose
-	    layout has no dialog units to convert from. */
-	void addKnobAt (Steinberg::Vst::ParamID tag, const VSTGUI::CRect& r,
-	                VSTGUI::CViewContainer* parent);
-	/** Returns the slider, so the caller can configure it - the ten harmonic
-	    sliders take alt-click mute, the cutoff/gain/pole ones do not. */
-	FtVSlider* addVSlider (Steinberg::Vst::ParamID tag, double xDlu, double yDlu,
-	                       double wDlu, double hDlu);
-	void addToggle (Steinberg::Vst::ParamID tag, double xDlu, double yDlu, bool radio = false);
+	PvKnob* addKnob (Steinberg::Vst::ParamID tag, double cx, double cy, double outer);
+	/** The value printed under (or beside) a knob. */
+	void addValue (VSTGUI::CControl* control, double x, double y, double size,
+	               SciFi::Align align = SciFi::Align::Centre, VSTGUI::CColor colour = Pv::kInk);
+	PvSelector* addSelector (Steinberg::Vst::ParamID tag, double cx, double cy, double r,
+	                         std::vector<std::string> names, double legendSize, double legendRadius);
+	PvLamp* addLamp (Steinberg::Vst::ParamID tag, double cx, double cy);
 	void registerControl (Steinberg::Vst::ParamID tag, VSTGUI::CControl* control);
+	void setDefault (VSTGUI::CControl* control, Steinberg::Vst::ParamID tag);
 
-	/** The ten formant buttons choose which formant the five formant knobs
-	    edit - that is what the DXi's _PARAM_FORMANT_ held. It is editor
-	    state, not a parameter. */
-	void selectFormant (int index);
-	void retargetFormantControls ();
+	void selectPartial (int index);
+	void retargetPartialControls ();
+	void copyPartialToAll ();
 
-	/** Recompute the two display panels. Both are derived from the
-	    parameters alone, so the editor can draw them without any channel
-	    back from the processor - see PORTING-NOTES section 3. */
 	void refreshDisplays ();
 	static bool affectsDisplays (Steinberg::Vst::ParamID tag);
-
-	/** Redraw the three envelope panels. Separate from refreshDisplays
-	    because the envelopes and the filter/waveform panels are driven by
-	    disjoint sets of parameters, and tracing three envelopes on every
-	    harmonic slider movement would be wasted work. */
 	void refreshEnvelopes ();
 	static bool affectsEnvelopes (Steinberg::Vst::ParamID tag);
+	EnvelopeSpec envelopeSpec (int which) const;   // 0 amp, 1 filter, 2 selected partial
+	void refreshLfos ();
+	void refreshValues ();
+	void refreshHeader ();
 
-	/** The settings for one envelope, read from the parameters exactly as
-	    Voice::noteOn reads them - so the drawing and the sound are built
-	    from the same numbers. `which` is 0 amplitude, 1 filter, 2 the
-	    selected harmonic. */
-	EnvelopeSpec envelopeSpec (int which) const;
-
-	/** The shared, transient value readout. */
 	void showReadoutFor (VSTGUI::CControl* control);
 	void hideReadout ();
 	std::string readoutTextFor (Steinberg::Vst::ParamID tag) const;
+	/** The short form printed on the panel: the readout without its name,
+	    with cutoff as 2.40K rather than 2400 Hz. */
+	std::string valueTextFor (Steinberg::Vst::ParamID tag) const;
+
+	double internalOf (Steinberg::Vst::ParamID id) const;
 
 	ForTranController* mController = nullptr;
 
-	std::map<std::string, VSTGUI::SharedPointer<VSTGUI::CBitmap>> mBitmaps;
-	std::map<Steinberg::Vst::ParamID, VSTGUI::CControl*> mControls;
+	VSTGUI::SharedPointer<VSTGUI::CBitmap> mPanelBitmap, mWearBitmap;
 
-	/** The five formant knobs plus the ENV and INV toggles, in the order
-	    attack, decay, sustain, release, level, env, invert. Their tags are
-	    re-pointed when the selected formant changes. */
-	VSTGUI::CControl* mFormantControls[7] = {};
-	VSTGUI::CControl* mFormantButtons[10] = {};
-	FtValueDisplay* mReadout = nullptr;
+	/** Every control bound to a fixed parameter. A vector, because a
+	    partial's envelope switch appears twice - its lamp in the bank and,
+	    when it is the selected one, the ENV selector in the box; the box's
+	    copies are in mPartialControls and re-pointed, not listed here. */
+	std::map<Steinberg::Vst::ParamID, std::vector<VSTGUI::CControl*>> mControls;
+
+	/** The partial box: attack, decay, sustain, release, level, the ENV
+	    selector, the INV lamp, LFO rate and LFO depth. */
+	enum { kPA, kPD, kPS, kPR, kPLevel, kPEnv, kPInv, kPRate, kPDepth, kNumPartialControls };
+	VSTGUI::CControl* mPartialControls[kNumPartialControls] = {};
+	PvBadge* mBadges[10] = {};
+
+	struct ValueSlot { VSTGUI::CControl* control; PvText* text; };
+	std::vector<ValueSlot> mValues;
+
+	PvText*       mEngineText = nullptr;
+	PvText*       mPartialNumber = nullptr;
+	PvButton*     mPrevButton = nullptr;
+	PvButton*     mNextButton = nullptr;
+	PvButton*     mCopyButton = nullptr;
+	PvBarsOled*   mBars = nullptr;
+	PvFilterOled* mFilterOled = nullptr;
+	PvEnvOled*    mAmpOled = nullptr;
+	PvEnvOled*    mPartialOled = nullptr;
+	PvRingsOled*  mRings = nullptr;
+	PvVoiceMeter* mVoiceMeter = nullptr;
+	PvReadout*    mReadout = nullptr;
 	VSTGUI::CControl* mHovered = nullptr;
 	VSTGUI::CControl* mEditing = nullptr;
 
-	/** Build the harmonic LFO panel and the sheet behind it, and show or
-	    hide the pair. */
-	void buildLfoPanel ();
-	void showLfoPanel (bool show);
+	FilterInfo mFilter;
+	/** Asks the processor for its voice count 20 times a second. */
+	VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> mTimer;
 
-	VSTGUI::CViewContainer* mLfoPanel = nullptr;
-	VSTGUI::CView* mLfoScrim = nullptr;
-
-	FtCurveView* mResponseView = nullptr;
-	FtCurveView* mWaveView = nullptr;
-	/** Amplitude, filter, selected harmonic - in that order, top to bottom. */
-	FtCurveView* mEnvViews[3] = {};
-	FilterInfo   mFilter;
-	/** Drives the scope: asks the processor for a frame 20 times a second,
-	    which is the rate the DXi's property page ran its own timer at. */
-	VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> mScopeTimer;
-
-	int  mSelectedFormant = 0;
+	int  mSelected = 0;
 	bool mUpdating = false;
 };
 

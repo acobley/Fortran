@@ -138,8 +138,13 @@ struct EnvelopeSpec
     The hold is a quarter of the time attack and decay took, floored at 5 ms,
     so the sustain level is always visible without a long envelope becoming
     mostly flat line. Everything is traced at a fixed internal rate, so the
-    cost does not depend on the host's sample rate. */
-double traceEnvelope (const EnvelopeSpec& spec, float* out, int count);
+    cost does not depend on the host's sample rate.
+
+    If `keyUpFraction` is given it receives where along the plot the key
+    is released (0..1), or -1 when the envelope has no shape - the panel
+    draws its dotted key-up line there. */
+double traceEnvelope (const EnvelopeSpec& spec, float* out, int count,
+                      double* keyUpFraction = nullptr);
 
 //------------------------------------------------------------------------
 } // namespace ForTran

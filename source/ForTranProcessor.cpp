@@ -317,19 +317,21 @@ tresult PLUGIN_API ForTranProcessor::notify (IMessage* message)
 		// through a seqlock; readWaveform returns 0 rather than blocking if
 		// it catches a write in progress, and a dropped frame at 20 fps is
 		// invisible.
+		//
+		// The reply always goes, carrying the voice count for the panel's
+		// meter; the frame rides along when there is one.
 		float frame[Synth::kCaptureMax];
 		const int n = mSynth.readWaveform (frame, Synth::kCaptureMax);
-		if (n > 0)
+		if (auto* reply = allocateMessage ())
 		{
-			if (auto* reply = allocateMessage ())
-			{
-				FReleaser releaser (reply);
-				reply->setMessageID (kForTranWaveDataMessage);
+			FReleaser releaser (reply);
+			reply->setMessageID (kForTranWaveDataMessage);
+			reply->getAttributes ()->setInt (kForTranVoicesAttribute, mSynth.activeVoiceCount ());
+			if (n > 0)
 				reply->getAttributes ()->setBinary (
 				    kForTranWaveAttribute, frame,
 				    static_cast<uint32> (n * sizeof (float)));
-				sendMessage (reply);
-			}
+			sendMessage (reply);
 		}
 		return kResultOk;
 	}

@@ -324,6 +324,11 @@ tresult PLUGIN_API ForTranController::notify (IMessage* message)
 {
 	if (message && FIDStringsEqual (message->getMessageID (), kForTranWaveDataMessage))
 	{
+		int64 voices = 0;
+		if (message->getAttributes ()->getInt (kForTranVoicesAttribute, voices) == kResultOk)
+			for (auto* editor : mEditors)
+				editor->setActiveVoices (static_cast<int> (voices));
+
 		const void* data = nullptr;
 		uint32 bytes = 0;
 		if (message->getAttributes ()->getBinary (kForTranWaveAttribute, data, bytes) == kResultOk &&

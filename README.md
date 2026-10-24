@@ -53,6 +53,20 @@ section 7.
 
 ## Using it
 
+**The Polivoks panel (branch `Polivoks`).** The editor is now the black-panel
+design in `Designs/ForTran-Polivoks-2b-SpectrumBank-StudioWorn.png`, 1200 × 640:
+knurled knobs with printed scales, rotary switches, red jewel lamps, colour
+OLEDs and the 70s sci-fi lettering, lightly worn. The partial bank shows every
+partial's level, phase, invert and envelope switch at once; click a numbered
+ring (or an LFO ring, or ‹ ›) to put that partial's envelope and harmonic LFO
+in the PARTIAL box, and **Copy n to all** copies that box to the other nine.
+The harmonic LFO pop-up and the scope are gone. Values are printed under the
+knobs; hovering still shows the full name and value. Alt-click or double-click
+a knob for its default. The panel and the wear are two bitmaps rendered from
+`tools/polivoks/d2p.js` by `tools/polivoks/make-panel.sh`; the controls are
+drawn by `source/PvControls.cpp` at the same coordinates. The description of
+the DXi panel below is the 1.2.1.0 release's.
+
 The panel is the DXi's, at the true size of its backdrop (840 × 388) rather
 than the smaller Windows dialog that clipped it.
 

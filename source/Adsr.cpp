@@ -177,8 +177,10 @@ void configure (Adsr& e, const EnvelopeSpec& spec)
 } // anonymous namespace
 
 //------------------------------------------------------------------------
-double traceEnvelope (const EnvelopeSpec& spec, float* out, int count)
+double traceEnvelope (const EnvelopeSpec& spec, float* out, int count, double* keyUpFraction)
 {
+	if (keyUpFraction)
+		*keyUpFraction = -1.0;
 	if (!out || count < 2)
 		return 0.0;
 
@@ -233,6 +235,9 @@ double traceEnvelope (const EnvelopeSpec& spec, float* out, int count)
 			out[i] = 0.f;
 		return 0.0;
 	}
+
+	if (keyUpFraction)
+		*keyUpFraction = static_cast<double> (toSustain + hold) / static_cast<double> (total - 1);
 
 	// -- pass two: emit `count` evenly spaced points ---------------------
 	Adsr e;
