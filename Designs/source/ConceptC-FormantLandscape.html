@@ -1,0 +1,143 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#141518}</style></head><body>
+<script src="common.js"></script>
+<script>
+rect(0, 0, 1200, 640, C.ground);
+header('Engine: 48000 Hz  ·  16 voices  ·  ten formant envelopes, one picture');
+const SEL = 2, KEYUP = 0.8, TOTAL = 1.3;
+
+function envAt(i, t) {
+  if (!P.env[i]) return t < KEYUP ? 1 : Math.exp(-6.9 * (t - KEYUP) / 0.42);
+  const A = P.A[i], D = P.D[i], S = P.S[i], R = P.R[i];
+  const dec = tt => tt < A ? tt / A : S + (1 - S) * Math.exp(-6.9 * (tt - A) / D);
+  return t < KEYUP ? dec(t) : dec(KEYUP) * Math.exp(-6.9 * (t - KEYUP) / R);
+}
+
+// ---- FORMANT LANDSCAPE ------------------------------------------------
+section(16, 72, 828, 388, 'FORMANT LANDSCAPE', 'partial × time × level', C.amber, { subx: 178 });
+['Tilt attack', 'Spread decay', 'Mirror', 'Copy 3 → all'].forEach((s, i) => {
+  const w = [78, 92, 60, 92][i], x = [470, 554, 652, 718][i];
+  rect(x, 82, w, 22, C.seg, C.border, 6);
+  text(x + w / 2, 97, s, { size: 10, weight: 600, anchor: 'middle', fill: C.muted });
+});
+screen(30, 112, 800, 284, { nx: 16, ny: 6 });
+
+const X = (i, t) => 96 + (t / TOTAL) * 500 + i * 21;
+const BY = i => 382 - i * 14;
+const HS = 112;
+const ridge = (i, plane = i) => {
+  const pts = [];
+  for (let n = 0; n <= 120; n++) { const t = TOTAL * n / 120; pts.push([X(plane, t), BY(plane) - HS * P.level[i] * envAt(i, t)]); }
+  return 'M' + pts.map(p => `${f1(p[0])},${f1(p[1])}`).join(' L');
+};
+// amplitude envelope on the back wall
+{
+  const pts = [];
+  for (let n = 0; n <= 120; n++) {
+    const t = TOTAL * n / 120, A = 0.003, D = 0.6, S = 0.7, R = 0.42;
+    const dec = tt => tt < A ? tt / A : S + (1 - S) * Math.exp(-6.9 * (tt - A) / D);
+    const v = t < KEYUP ? dec(t) : dec(KEYUP) * Math.exp(-6.9 * (t - KEYUP) / R);
+    pts.push([X(10, t), BY(10) - HS * 0.85 * v]);
+  }
+  line(X(10, 0), BY(10), X(10, TOTAL), BY(10), hexA(C.mint, 0.25), 1);
+  path('M' + pts.map(p => `${f1(p[0])},${f1(p[1])}`).join(' L'), C.mint, 1.4, 'none', 'stroke-dasharray="5 4" opacity="0.85"');
+  text(X(10, 0.02) + 6, BY(10) - HS * 0.85 - 6, 'amp envelope · back wall', { size: 9, font: MONO, fill: C.mint });
+}
+// floor: key-up line across all partials
+line(X(0, KEYUP), BY(0), X(9.6, KEYUP), BY(9.6), C.dim, 1, 'stroke-dasharray="3 3"');
+for (let i = 9; i >= 0; i--) {
+  const d = ridge(i);
+  const close = ` L${f1(X(i, TOTAL))},${BY(i)} L${f1(X(i, 0))},${BY(i)} Z`;
+  path(d + close, 'none', 0, C.screen);
+  path(d + close, 'none', 0, hexA(C.amber, i === SEL ? 0.22 : 0.05 + (9 - i) * 0.008));
+  path(d, i === SEL ? C.amber : hexA(C.amber, P.env[i] ? 0.6 : 0.3), i === SEL ? 2.4 : 1.3, 'none', P.env[i] ? '' : 'stroke-dasharray="4 3"');
+  line(X(i, 0), BY(i), X(i, TOTAL), BY(i), hexA(C.amber, 0.14), 1);
+}
+// the selected ridge again, on top - brought forward
+path(ridge(SEL), C.amber, 2.4);
+for (let i = 0; i < 10; i++)
+  text(X(i, 0) - 8, BY(i) + 3, i + 1, { size: 9.5, font: MONO, anchor: 'end', fill: i === SEL ? C.amber : C.subtle, weight: i === SEL ? 700 : 400 });
+text(X(9.6, KEYUP) + 4, BY(9.6) - 2, 'key up', { size: 9, font: MONO, fill: C.subtle });
+// handles on the selected ridge
+const h = (t) => [X(SEL, t), BY(SEL) - HS * P.level[SEL] * envAt(SEL, t)];
+[[P.A[SEL]], [P.A[SEL] + P.D[SEL]], [KEYUP], [KEYUP + P.R[SEL]]].forEach(([t], n) => {
+  const [x, y] = h(t);
+  circle(f1(x), f1(y), n === 1 ? 6 : 4.5, n === 1 ? C.amber : C.screen, C.amber, 1.8);
+});
+// time cursor - drives the waveform screen
+const TC = 0.12;
+line(X(0, TC), BY(0) + 6, X(9.6, TC), BY(9.6) + 6, C.violet, 1.3, 'opacity="0.8"');
+circle(X(0, TC), BY(0) + 6, 3.5, C.violet);
+text(X(0, TC) + 6, BY(0) + 18, 't = 120 ms', { size: 9, font: MONO, fill: C.violet });
+// tooltip
+{
+  const [x, y] = h(P.A[SEL] + P.D[SEL]);
+  rect(x + 12, y - 44, 236, 22, '#26282d', C.capEdge, 5);
+  text(x + 22, y - 29, 'Partial 3 · decay 240 ms · sustain 45 %', { size: 10, fill: C.text });
+}
+// axes
+text(X(0, TOTAL) - 4, BY(0) + 18, 'time →  1.3 s', { size: 9, font: MONO, anchor: 'end', fill: C.subtle });
+text(X(0, 0) - 22, BY(0) + 18, 'partial ↗', { size: 9, font: MONO, fill: C.subtle });
+text(40, 128, 'Drag a point on the bright ridge · click a ridge to bring it forward', { size: 9.5, font: MONO, fill: C.muted });
+
+seg(30, 412, 320, 24, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], SEL, C.amber, { size: 10 });
+text(364, 428, 'A 12 ms · D 240 ms · S 45 % · R 380 ms · env 80 % · on · not inverted', { size: 10, font: MONO, fill: C.muted });
+text(364, 446, 'Dashed ridges: formant envelope off - the partial follows the amp envelope', { size: 9.5, fill: C.dim });
+
+// ---- WAVEFORM ---------------------------------------------------------
+section(860, 72, 324, 160, 'WAVEFORM', 'one cycle at the cursor', C.amber, { subx: 98 });
+screen(874, 104, 296, 96, { nx: 8, ny: 4 });
+{
+  const pts = []; const amps = P.level.map((l, i) => l * envAt(i, TC) * (P.inv[i] ? -1 : 1));
+  let mx = 0; const vals = [];
+  for (let n = 0; n <= 200; n++) {
+    const th = 2 * Math.PI * n / 200; let s = 0;
+    for (let k = 0; k < 10; k++) s += amps[k] * Math.sin((k + 1) * th + (P.phase[k] - 0.5) * Math.PI);
+    vals.push(s); mx = Math.max(mx, Math.abs(s));
+  }
+  vals.forEach((s, n) => pts.push([878 + n * 288 / 200, 152 - s / mx * 40]));
+  line(876, 152, 1168, 152, C.dim, 1);
+  path('M' + pts.map(p => `${f1(p[0])},${f1(p[1])}`).join(' L'), C.amber, 1.8);
+}
+text(874, 220, 'ten partials summed, phase and invert applied', { size: 9.5, fill: C.subtle });
+
+// ---- PARTIAL 3 --------------------------------------------------------
+section(860, 248, 324, 212, 'PARTIAL 3', '3 × the note', C.amber, { subx: 92 });
+knob(906, 304, 18, 0.64, C.amber, '64 %', 'LEVEL');
+knob(1022, 304, 18, 0.62, C.amber, '+22°', 'PHASE', { bipolar: true });
+knob(1138, 304, 18, 0.8, C.amber, '80 %', 'ENV LEVEL');
+line(874, 350, 1170, 350, C.rule, 1);
+subhead(874, 368, 'HARMONIC LFO', C.violet);
+knob(902, 404, 17, 0.35, C.violet, '1.40 Hz', 'RATE');
+knob(966, 404, 17, 0.3, C.violet, '30 %', 'DEPTH');
+text(1018, 392, 'ENV', { size: 9.5, weight: 700, fill: C.title });
+seg(1054, 379, 112, 20, ['Off', 'On'], 1, C.amber, { size: 9.5 });
+text(1018, 428, 'INV', { size: 9.5, weight: 700, fill: C.title });
+lamp(1062, 424, 0, C.lampOn, 5);
+text(1080, 428, 'phase invert', { size: 9.5, fill: C.subtle });
+
+// ---- FILTER -----------------------------------------------------------
+section(16, 476, 544, 148, 'SPECTRAL FILTER', null, C.blue);
+filterScreen(30, 510, 170, 102, { dots: true, sel: 3, f0: 220, right: '2.40k' });
+shapeSwitches(212, 498, 334, 25, 19);
+[['2.40k', 'CUTOFF', 0.62, true], ['35 %', 'Q', 0.35], ['4', 'POLES', 0.6], ['+60 %', 'ENV', 0.8, false, true],
+ ['20 ms', 'A', 0.25], ['350 ms', 'D', 0.5], ['30 %', 'S', 0.3], ['300 ms', 'R', 0.45]].forEach((k, i) =>
+  knob(232 + i * 44, 572, 13, k[2], C.blue, k[0], k[1], { vs: 8.5, ls: 8.5, vgap: 11, lgap: 11, bipolar: !!k[4] }));
+line(394, 556, 394, 610, C.rule, 1);
+
+// ---- AMP --------------------------------------------------------------
+section(576, 476, 304, 148, 'AMP', null, C.mint);
+envScreen(590, 512, 276, 32, C.mint, 0.003, 0.6, 0.7, 0.42, { total: 1.4, keyUp: 0.85, nx: 8, ny: 2, lvl: 0.85 });
+[['3 ms', 'A', 0.08], ['600 ms', 'D', 0.52], ['70 %', 'S', 0.7], ['420 ms', 'R', 0.5], ['100 %', 'LEVEL', 1]].forEach((k, i) =>
+  knob(614 + i * 56, 574, 13, k[2], C.mint, k[0], k[1], { vs: 9, ls: 8.5, vgap: 11, lgap: 11 }));
+
+// ---- OUTPUT + MOTION --------------------------------------------------
+section(896, 476, 288, 148, 'OUTPUT · MOTION', null, C.violet);
+[['5.2 Hz', 'VIB RATE', 0.45], ['12 %', 'VIB DEPTH', 0.12], ['3.0 Hz', 'TREM RATE', 0.3], ['off', 'TREM DEPTH', 0]].forEach((k, i) =>
+  knob(930 + i * 66, 522, 12, k[2], C.violet, k[0], k[1], { vs: 8.5, ls: 8, vgap: 10, lgap: 10 }));
+[['−20 dB', 'LEVEL', 0.5, C.mint], ['C', 'PAN', 0.5, C.mint], ['off', 'GLIDE', 0, C.amber]].forEach((k, i) =>
+  knob(930 + i * 66, 580, 12, k[2], k[3], k[0], k[1], { vs: 8.5, ls: 8, vgap: 10, lgap: 10, bipolar: k[1] === 'PAN' }));
+lamp(1128, 576, 1, C.mint, 5.5);
+text(1128, 602, 'LADDER', { size: 8, weight: 700, anchor: 'middle', fill: C.title });
+
+render();
+</script></body></html>

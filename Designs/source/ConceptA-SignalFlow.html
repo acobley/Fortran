@@ -1,0 +1,114 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#141518}</style></head><body>
+<script src="common.js"></script>
+<script>
+rect(0, 0, 1200, 640, C.ground);
+header('Engine: 48000 Hz  ·  16 voices  ·  pitch wheel ±1 octave');
+
+// ---- PARTIALS --------------------------------------------------------
+section(16, 72, 520, 552, 'PARTIALS', 'ten sines at k × the note', C.amber);
+const colX = i => 86 + 21.5 + i * 43;
+const rowLab = (y, s) => text(30, y, s, { size: 9.5, weight: 700, fill: C.subtle, ls: 0.4 });
+rowLab(186, 'LEVEL'); rowLab(334, 'PHASE'); rowLab(364, 'INV'); rowLab(388, 'ENV');
+const SEL = 2;
+// selected column wash
+rect(colX(SEL) - 20, 102, 40, 294, hexA(C.amber, 0.07), hexA(C.amber, 0.25), 6);
+for (let i = 0; i < 10; i++) {
+  const cx = colX(i), top = 108, bot = 262, hh = bot - top, lv = P.level[i];
+  rect(cx - 4, top, 8, hh, C.track, null, 4);
+  rect(cx - 4, bot - hh * lv, 8, hh * lv, i === SEL ? C.amber : hexA(C.amber, 0.75), null, 4);
+  rect(cx - 11, bot - hh * lv - 4, 22, 8, C.cap, C.capEdge, 2);
+  line(cx - 6, bot - hh * lv, cx + 6, bot - hh * lv, C.text, 1.5);
+  text(cx, 278, Math.round(lv * 100), { size: 9.5, font: MONO, anchor: 'middle', fill: C.muted });
+  circle(cx, 298, 10, i === SEL ? C.amber : C.seg, i === SEL ? C.amber : C.border, 1);
+  text(cx, 302, i + 1, { size: 10.5, weight: 700, anchor: 'middle', fill: i === SEL ? '#16171a' : C.title });
+  knob(cx, 330, 10, P.phase[i], C.amber, null, null, { bipolar: true });
+  lamp(cx, 361, P.inv[i], C.lampOn, 4.5);
+  lamp(cx, 385, P.env[i], C.amber, 4.5);
+}
+text(522, 278, '%', { size: 9, font: MONO, anchor: 'end', fill: C.dim });
+
+// focus card
+rect(30, 406, 492, 204, '#17181b', C.border, 8);
+text(44, 428, 'PARTIAL 3', { size: 11, weight: 800, fill: C.amber, ls: 0.6 });
+text(118, 428, '3 × f  ·  formant envelope and harmonic LFO', { size: 10.5, fill: C.subtle });
+seg(406, 414, 104, 20, ['‹ 2', '4 ›'], -1, C.amber, { size: 9.5 });
+envScreen(44, 440, 196, 100, C.amber, P.A[SEL], P.D[SEL], P.S[SEL], P.R[SEL], { label: 'formant 3', right: '0.8 ×', lvl: 0.72, total: 1.3, keyUp: 0.8 });
+text(44, 560, 'ENV', { size: 9.5, weight: 700, fill: C.title });
+seg(72, 547, 84, 20, ['Off', 'On'], 1, C.amber, { size: 9.5 });
+text(168, 561, 'INV', { size: 9.5, weight: 700, fill: C.title });
+lamp(199, 557, 0, C.lampOn, 5);
+rect(44, 578, 196, 22, C.seg, C.border, 6);
+text(142, 593, 'Copy partial 3 to all', { size: 10, weight: 600, anchor: 'middle', fill: C.muted });
+
+const kx = [282, 330, 378, 426, 476];
+knob(kx[0], 460, 16, 0.18, C.amber, ms(P.A[SEL]), 'A');
+knob(kx[1], 460, 16, 0.48, C.amber, ms(P.D[SEL]), 'D');
+knob(kx[2], 460, 16, P.S[SEL], C.amber, pc(P.S[SEL]), 'S');
+knob(kx[3], 460, 16, 0.55, C.amber, ms(P.R[SEL]), 'R');
+knob(kx[4], 460, 16, 0.8, C.amber, '80 %', 'LEVEL');
+line(262, 512, 508, 512, C.rule, 1);
+subhead(262, 530, 'HARMONIC LFO 3', C.violet);
+knob(300, 562, 16, 0.35, C.violet, '1.40 Hz', 'RATE');
+knob(370, 562, 16, 0.3, C.violet, '30 %', 'DEPTH');
+// tiny scope of the harmonic LFO
+screen(418, 542, 92, 44, { nx: 4, ny: 2 });
+let d = '';
+for (let i = 0; i <= 60; i++) { const x = 422 + i * 84 / 60, y = 564 - 12 * Math.sin(i / 60 * Math.PI * 4); d += (i ? ' L' : 'M') + f1(x) + ',' + f1(y); }
+path(d, C.violet, 1.6);
+text(464, 600, 'level × (1 + 0.3 sin)', { size: 8.5, font: MONO, anchor: 'middle', fill: C.subtle });
+
+chevron(544, 250);
+
+// ---- SPECTRAL FILTER --------------------------------------------------
+section(552, 72, 348, 380, 'SPECTRAL FILTER', null, C.blue);
+lamp(800, 94, 0, C.blue, 4); text(810, 98, 'BYPASS', { size: 9.5, weight: 700, fill: C.subtle });
+filterScreen(566, 104, 320, 118, { dots: true, sel: 3, f0: 220, label: 'at A3 · harmonics read here', right: '2.40k', axis: true });
+shapeSwitches(566, 234, 320);
+knob(602, 318, 19, 0.62, C.blue, '2.40k', 'CUTOFF');
+knob(682, 318, 19, 0.35, C.blue, '35 %', 'Q');
+knob(762, 318, 19, 0.6, C.blue, '4', 'POLES');
+knob(842, 318, 19, 0.8, C.blue, '+60 %', 'ENV LEVEL', { bipolar: true });
+line(566, 374, 886, 374, C.rule, 1);
+subhead(566, 392, 'FILTER ENV', C.blue);
+envScreen(566, 398, 128, 44, C.blue, 0.02, 0.35, 0.3, 0.3, { total: 1.3, keyUp: 0.8 });
+[['A', '20 ms', 0.25], ['D', '350 ms', 0.5], ['S', '30 %', 0.3], ['R', '300 ms', 0.45]].forEach((k, i) =>
+  knob(726 + i * 44, 404, 11, k[2], C.blue, k[1], k[0], { vs: 9, ls: 9, vgap: 11, lgap: 11 }));
+
+chevron(908, 250);
+
+// ---- AMP --------------------------------------------------------------
+section(916, 72, 268, 380, 'AMP', 'envelope + output', C.mint, { subx: 44 });
+envScreen(930, 104, 240, 96, C.mint, 0.003, 0.6, 0.7, 0.42, { label: 'key up at the dotted line', right: '613 ms', total: 1.4, keyUp: 0.85, lvl: 0.8 });
+[['3 ms', 'A', 0.08], ['600 ms', 'D', 0.52], ['70 %', 'S', 0.7], ['420 ms', 'R', 0.5], ['100 %', 'LEVEL', 1]].forEach((k, i) =>
+  knob(950 + i * 50, 238, 15, k[2], C.mint, k[0], k[1], { vs: 9.5 }));
+line(930, 290, 1170, 290, C.rule, 1);
+knob(966, 330, 20, 0.5, C.mint, '−20.0 dB', 'LEVEL');
+knob(1050, 330, 20, 0.5, C.mint, 'C', 'PAN', { bipolar: true });
+knob(1134, 330, 20, 0, C.amber, 'off', 'GLIDE');
+line(930, 386, 1170, 386, C.rule, 1);
+text(930, 410, 'LADDER', { size: 9.5, weight: 700, fill: C.title });
+seg(978, 397, 84, 20, ['Off', 'On'], 1, C.mint, { size: 9.5 });
+text(1072, 405, '+10.6 dB below B4,', { size: 9.5, fill: C.subtle });
+text(1072, 419, 'corner 0.198 × Nyquist', { size: 9.5, fill: C.subtle });
+
+// ---- MODULATION -------------------------------------------------------
+section(552, 468, 632, 156, 'MODULATION', 'pitch and level LFOs, and all ten harmonic LFOs at a glance', C.violet, { subx: 112 });
+subhead(570, 516, 'VIBRATO · PHASE STEP', C.violet);
+knob(596, 556, 18, 0.45, C.violet, '5.20 Hz', 'RATE');
+knob(660, 556, 18, 0.12, C.violet, '12 %', 'DEPTH');
+subhead(712, 516, 'TREMOLO · LEVEL', C.violet);
+knob(736, 556, 18, 0.3, C.violet, '3.00 Hz', 'RATE');
+knob(800, 556, 18, 0, C.violet, 'off', 'DEPTH');
+line(846, 506, 846, 610, C.rule, 1);
+subhead(864, 516, 'HARMONIC LFO DEPTH · 1 – 10', C.violet);
+for (let i = 0; i < 10; i++) {
+  const x = 868 + i * 30, top = 530, h = 52, dv = P.lfoDepth[i];
+  rect(x, top, 18, h, C.track, null, 3);
+  if (dv > 0) rect(x, top + h - h * dv * 1.6, 18, h * dv * 1.6, i === SEL ? C.violet : hexA(C.violet, 0.6), null, 3);
+  if (P.lfoRate[i] > 0) circle(x + 9, top - 0, 0, C.violet);
+  text(x + 9, 598, i + 1, { size: 9.5, font: MONO, anchor: 'middle', fill: i === SEL ? C.violet : C.subtle });
+}
+text(868, 614, 'click a bar to open its partial above', { size: 9, fill: C.dim });
+
+render();
+</script></body></html>
