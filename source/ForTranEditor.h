@@ -35,6 +35,8 @@
 
 #include "public.sdk/source/vst/vstguieditor.h"
 
+#include <array>
+#include <chrono>
 #include <map>
 #include <string>
 #include <vector>
@@ -169,6 +171,15 @@ private:
 	int  mSelected = 0;
 	bool mUpdating = false;
 	bool mRingEditing = false;
+
+	/** The LFO rings' dots. While a note sounds they show the voice's real
+	    phases; between notes the editor runs them on at the set rates, so a
+	    rate can be seen without playing. */
+	void advanceRings ();
+	std::array<float, 10> mRingPhase {};
+	std::array<float, 10> mRingHz {};
+	std::array<float, 10> mRingDepth {};
+	std::chrono::steady_clock::time_point mLastTick;
 };
 
 //------------------------------------------------------------------------

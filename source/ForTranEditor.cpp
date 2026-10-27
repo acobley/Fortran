@@ -14,6 +14,13 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <ctime>
+
+#if !defined (_WIN32)
+#include <dlfcn.h>
+#include <sys/stat.h>
+#endif
 
 using namespace VSTGUI;
 using namespace Steinberg;
@@ -22,6 +29,58 @@ using namespace Steinberg::Vst;
 namespace ForTran {
 
 namespace {
+
+//------------------------------------------------------------------------
+// Where this binary was loaded from, and when it was built.
+//
+// A host keeps the first copy of a plug-in it loads until it quits, and
+// macOS can find ForTran in more than one place (~/Library and /Library,
+// the .vst3 or the .component), so "is this the build I just made?" is a
+// real question. The header answers it: the bundle's path, and the binary's
+// modification time - which is the link time of THIS build, not the time
+// of the last change to any one source file.
+//------------------------------------------------------------------------
+void loadPathAnchor () {}
+
+struct LoadInfo
+{
+	std::string path;    // the bundle, with the home folder as ~
+	std::string built;   // "27 OCT 10:26"
+};
+
+LoadInfo loadInfo ()
+{
+	LoadInfo info;
+#if !defined (_WIN32)
+	Dl_info dl {};
+	if (dladdr (reinterpret_cast<const void*> (&loadPathAnchor), &dl) == 0 || !dl.dli_fname)
+		return info;
+	const std::string binary = dl.dli_fname;
+
+	struct stat st {};
+	if (stat (binary.c_str (), &st) == 0)
+	{
+		char buf[32];
+		const std::time_t t = st.st_mtime;
+		if (std::strftime (buf, sizeof (buf), "%d %b %H:%M", std::localtime (&t)) > 0)
+			info.built = buf;
+	}
+
+	// .../ForTran.vst3/Contents/MacOS/ForTran -> .../ForTran.vst3
+	std::string path = binary;
+	const auto contents = path.rfind ("/Contents/");
+	if (contents != std::string::npos)
+		path.erase (contents);
+	if (const char* home = std::getenv ("HOME"))
+	{
+		const std::string h = home;
+		if (!h.empty () && path.compare (0, h.size (), h) == 0)
+			path = "~" + path.substr (h.size ());
+	}
+	info.path = path;
+#endif
+	return info;
+}
 
 /** The ten partial columns in the bank, and the bars over them. */
 inline double bankX (int i) { return 78. + i * 44.8; }
@@ -144,6 +203,27 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 	// ---- header: the engine line and the voice meter --------------------
 	mEngineText = new PvText (CPoint (252., 32.), 10.5, false, SciFi::Align::Left, Pv::kInk, 420.);
 	frame->addView (mEngineText);
+	// Where this copy was loaded from, small, between the engine line and
+	// the voice meter. Long paths lose their start, not their end: the end
+	// says which bundle it is.
+	{
+		const LoadInfo li = loadInfo ();
+		constexpr double kSize = 7.5, kRoom = 370.;
+		std::string path = li.path.empty () ? std::string ("UNKNOWN") : li.path;
+		bool cut = false;
+		while (path.size () > 8 && SciFi::textWidth ("FROM ..." + path, kSize, false) > kRoom)
+		{
+			path.erase (0, 1);
+			cut = true;
+		}
+		auto* from = new PvText (CPoint (540., 27.), kSize, false, SciFi::Align::Left, Pv::kMuted, kRoom + 10.);
+		from->setText ((cut ? "FROM ..." : "FROM ") + path);
+		frame->addView (from);
+		auto* built = new PvText (CPoint (540., 39.), kSize, false, SciFi::Align::Left, Pv::kMuted, kRoom + 10.);
+		built->setText (li.built.empty () ? std::string () : "BUILT " + li.built);
+		frame->addView (built);
+	}
+
 	mVoiceMeter = new PvVoiceMeter (CRect (970., 19., 1178., 37.));
 	frame->addView (mVoiceMeter);
 

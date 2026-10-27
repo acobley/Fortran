@@ -315,8 +315,12 @@ private:
 };
 
 //------------------------------------------------------------------------
-/** The ten harmonic LFOs: depth as an arc round a ring, rate in hertz
-    inside it - and the controls for them. Click a ring to select that
+/** The ten harmonic LFOs: depth as the outer violet arc, rate as the thin
+    inner arc (on the rate knob's own log scale) with its figure in hertz
+    under the ring - and the controls for them. A dot runs round each
+    active ring at the LFO's own rate, the real phase while a note sounds;
+    above kMaxDotHz a dot redrawn 30 times a second would strobe, so the
+    ring blurs instead. Click a ring to select that
     partial; drag it up or down for depth, sideways for rate (shift for
     fine). The drag picks its direction from the first few pixels and keeps
     it, so a slightly diagonal drag does not change both. */
@@ -337,10 +341,14 @@ public:
 	void onMouseUpEvent (VSTGUI::MouseUpEvent& event) override;
 	void onMouseCancelEvent (VSTGUI::MouseCancelEvent& event) override;
 	void onMouseWheelEvent (VSTGUI::MouseWheelEvent& event) override;
-	void setLfos (const std::array<float, 10>& depth, const std::array<std::string, 10>& rate,
-	              int selected);
-	/** The LFOs' phases while a note sounds: a dot runs round each ring. */
-	void setPhases (bool live, const std::array<float, 10>& phase);
+	/** `rate` is the 0..1 control, `hz` what it means. */
+	void setLfos (const std::array<float, 10>& depth, const std::array<float, 10>& rate,
+	              const std::array<float, 10>& hz, int selected);
+	/** Where each LFO is in its cycle, radians. */
+	void setPhases (const std::array<float, 10>& phase);
+
+	/** The fastest rate drawn as a moving dot. */
+	static constexpr float kMaxDotHz = 4.f;
 	void onMouseDownEvent (VSTGUI::MouseDownEvent& event) override;
 	CLASS_METHODS (PvRingsOled, VSTGUI::CView)
 protected:
@@ -358,9 +366,9 @@ private:
 	float mDragStart = 0.f;
 	VSTGUI::CPoint mDragPoint;
 	std::array<float, 10> mDepth {};
-	std::array<std::string, 10> mRate;
+	std::array<float, 10> mRate {};
+	std::array<float, 10> mHz {};
 	std::array<float, 10> mPhase {};
-	bool mLive = false;
 	int mSelected = 0;
 };
 

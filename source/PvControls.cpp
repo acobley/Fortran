@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 using namespace VSTGUI;
 
@@ -831,63 +832,93 @@ PvRingsOled::PvRingsOled (const CRect& size, std::function<void (int)> onPick, G
 	setMouseEnabled (true);
 }
 
-void PvRingsOled::setLfos (const std::array<float, 10>& depth, const std::array<std::string, 10>& rate,
-                           int selected)
+void PvRingsOled::setLfos (const std::array<float, 10>& depth, const std::array<float, 10>& rate,
+                           const std::array<float, 10>& hz, int selected)
 {
-	if (depth == mDepth && rate == mRate && selected == mSelected)
+	if (depth == mDepth && rate == mRate && hz == mHz && selected == mSelected)
 		return;
 	mDepth = depth;
 	mRate = rate;
+	mHz = hz;
 	mSelected = selected;
 	invalid ();
 }
 
-void PvRingsOled::setPhases (bool live, const std::array<float, 10>& phase)
+void PvRingsOled::setPhases (const std::array<float, 10>& phase)
 {
-	if (live == mLive && (!live || phase == mPhase))
+	if (phase == mPhase)
 		return;
-	mLive = live;
 	mPhase = phase;
 	invalid ();
 }
+
+namespace {
+/** An arc from the knobs' 7 o'clock start round to `frac` of their sweep. */
+void sweepArc (CDrawContext* context, const CPoint& c, double r, double frac, const CColor& colour,
+               double width)
+{
+	if (frac <= 0.)
+		return;
+	const double a = -135. + 270. * std::min (frac, 1.);
+	if (auto p = owned (context->createGraphicsPath ()))
+	{
+		// VSTGUI arcs count from 3 o'clock; the mock-up's from 12.
+		p->addArc (CRect (c.x - r, c.y - r, c.x + r, c.y + r), -225., a - 90., true);
+		context->setLineStyle (CLineStyle (CLineStyle::kLineCapButt, CLineStyle::kLineJoinMiter));
+		context->setLineWidth (width);
+		context->setFrameColor (colour);
+		context->drawGraphicsPath (p, CDrawContext::kPathStroked);
+	}
+}
+} // anonymous namespace
 
 void PvRingsOled::drawContent (CDrawContext* context)
 {
 	const CRect r = getViewSize ();
 	for (int i = 0; i < 10; ++i)
 	{
+		const size_t k = static_cast<size_t> (i);
 		const CPoint c (r.left + 16. + i * 29.5, r.top + 60.);
-		const double rr = 11.;
+		const double rr = 11., ri = 6.5;
 		const bool sel = i == mSelected;
-		const float dv = mDepth[static_cast<size_t> (i)];
+		const float dv = mDepth[k];
+
+		// depth: the outer ring
 		ring (context, c, rr, hex (0x1c1c26), 2.4);
 		if (dv > 0.f)
 		{
-			const double a = -135. + 270. * std::min (1.f, dv);
-			if (auto p = owned (context->createGraphicsPath ()))
+			sweepArc (context, c, rr, dv, Pv::alpha (Pv::kViolet, 0.2), 5.);
+			sweepArc (context, c, rr, dv, sel ? Pv::kViolet : Pv::alpha (Pv::kViolet, 0.6), 2.4);
+		}
+
+		// rate: the inner ring - shown at depth 0 too, so it can be set
+		// before it is heard
+		ring (context, c, ri, hex (0x1c1c26), 1.4);
+		const double rateAlpha = dv > 0.f ? (sel ? 0.95 : 0.65) : 0.35;
+		sweepArc (context, c, ri, mRate[k], hex (0xeef3ff, rateAlpha), 1.4);
+
+		// the LFO itself, going round
+		if (dv > 0.f)
+		{
+			if (mHz[k] <= kMaxDotHz)
 			{
-				// VSTGUI arcs count from 3 o'clock; the mock-up's from 12.
-				p->addArc (CRect (c.x - rr, c.y - rr, c.x + rr, c.y + rr), -225., a - 90., true);
-				context->setLineStyle (CLineStyle (CLineStyle::kLineCapButt, CLineStyle::kLineJoinMiter));
-				context->setLineWidth (5.);
-				context->setFrameColor (Pv::alpha (Pv::kViolet, 0.2));
-				context->drawGraphicsPath (p, CDrawContext::kPathStroked);
-				context->setLineWidth (2.4);
-				context->setFrameColor (sel ? Pv::kViolet : Pv::alpha (Pv::kViolet, 0.6));
-				context->drawGraphicsPath (p, CDrawContext::kPathStroked);
-			}
-			if (mLive)
-			{
-				// the LFO itself, running round the ring
-				const double deg = mPhase[static_cast<size_t> (i)] * 180. / kPi;
-				const CPoint d = pol (c, rr, deg);
+				const CPoint d = pol (c, rr, mPhase[k] * 180. / kPi);
 				disc (context, d, 4., Pv::alpha (Pv::kViolet, 0.3));
 				disc (context, d, 2.2, hex (0xffffff));
 			}
+			else
+			{
+				// too fast to draw as a dot: a blur all the way round,
+				// brighter the faster it goes
+				const double f = std::clamp ((std::log (mHz[k]) - std::log (kMaxDotHz)) / std::log (8.), 0., 1.);
+				ring (context, c, rr, Pv::alpha (hex (0xeef3ff), 0.12 + 0.18 * f), 4.);
+			}
 		}
-		// the rate shows even at depth 0, so it can be set before it is heard
-		oledText (context, mRate[static_cast<size_t> (i)], c.x, c.y + 4.,
-		          dv > 0.f ? Pv::kViolet : Pv::alpha (Pv::kOledText, 0.7), SciFi::Align::Centre, 7.);
+
+		char hzText[12];
+		std::snprintf (hzText, sizeof (hzText), mHz[k] < 10.f ? "%.1f" : "%.0f", static_cast<double> (mHz[k]));
+		oledText (context, hzText, c.x, r.top + 83., dv > 0.f ? Pv::kInk : Pv::alpha (Pv::kOledText, 0.7),
+		          SciFi::Align::Centre, 7.);
 		oledText (context, std::to_string (i + 1), c.x, r.top + 96., sel ? Pv::kViolet : Pv::kOledText,
 		          SciFi::Align::Centre, 8.);
 	}
