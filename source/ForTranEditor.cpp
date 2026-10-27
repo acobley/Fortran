@@ -306,7 +306,9 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 		    if (mController)
 			    mController->requestWaveFrame ();
 		    refreshHeader ();
+		    advanceRings ();
 	    }, 30, true);
+	mLastTick = std::chrono::steady_clock::now ();
 
 	return true;
 }
@@ -698,13 +700,28 @@ void ForTranEditor::setLiveState (const LiveState& state)
 		screens[i]->setPlayhead (std::clamp (t / mPlotTotal[i], 0., 1.), values[i]);
 	}
 
-	if (mRings)
+	// A sounding note's own LFO phases; advanceRings carries on from them.
+	if (mLiveOn && mRings)
 	{
-		std::array<float, 10> phase {};
 		for (int k = 0; k < 10; ++k)
-			phase[static_cast<size_t> (k)] = state.lfoPhase[k];
-		mRings->setPhases (mLiveOn, phase);
+			mRingPhase[static_cast<size_t> (k)] = state.lfoPhase[k];
+		mRings->setPhases (mRingPhase);
 	}
+}
+
+//------------------------------------------------------------------------
+void ForTranEditor::advanceRings ()
+{
+	const auto now = std::chrono::steady_clock::now ();
+	const double dt = std::min (0.25, std::chrono::duration<double> (now - mLastTick).count ());
+	mLastTick = now;
+	if (!mRings || mLiveOn)
+		return;
+	constexpr double kTwoPi = 6.283185307179586;
+	for (size_t k = 0; k < 10; ++k)
+		if (mRingDepth[k] > 0.f)
+			mRingPhase[k] = static_cast<float> (std::fmod (mRingPhase[k] + kTwoPi * mRingHz[k] * dt, kTwoPi));
+	mRings->setPhases (mRingPhase);
 }
 
 //------------------------------------------------------------------------
@@ -954,18 +971,16 @@ void ForTranEditor::refreshLfos ()
 {
 	if (!mRings || !mController)
 		return;
-	std::array<float, 10> depth {};
-	std::array<std::string, 10> rate;
+	std::array<float, 10> rate {};
 	for (int k = 0; k < 10; ++k)
 	{
-		depth[static_cast<size_t> (k)] =
+		const size_t i = static_cast<size_t> (k);
+		mRingDepth[i] =
 		    static_cast<float> (mController->getParamNormalized (static_cast<ParamID> (kHarmLfoDepth1 + k)));
-		const double hz = harmonicLfoHz (internalOf (static_cast<ParamID> (kHarmLfoRate1 + k)));
-		char buf[12];
-		std::snprintf (buf, sizeof (buf), hz < 10. ? "%.1f" : "%.0f", hz);
-		rate[static_cast<size_t> (k)] = buf;
+		rate[i] = static_cast<float> (mController->getParamNormalized (static_cast<ParamID> (kHarmLfoRate1 + k)));
+		mRingHz[i] = static_cast<float> (harmonicLfoHz (internalOf (static_cast<ParamID> (kHarmLfoRate1 + k))));
 	}
-	mRings->setLfos (depth, rate, mSelected);
+	mRings->setLfos (mRingDepth, rate, mRingHz, mSelected);
 }
 
 //------------------------------------------------------------------------
