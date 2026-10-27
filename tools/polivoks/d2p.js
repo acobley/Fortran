@@ -43,21 +43,20 @@ chevron(548, 252);
 // ---- FILTER ---------------------------------------------------------------
 section(556, 72, 340, 360, 'SPECTRAL FILTER');
 lamp(844, 94, 0); text(882, 98, 'BYP', { size: 9, anchor: 'end' });
-filterOled(570, 106, 312, 108, { sel: 3, label: ' ', right: '2.40K' });  // caption drawn live by the plug-in
-selector(604, 258, 11, ['OFF', 'ON'], 1, { label: 'LP' });
-selector(682, 258, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 0, { label: 'HP', ns: 7.5, lr: 20 });
-selector(760, 258, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 1, { label: 'COMB', ns: 7.5, lr: 20 });
-selector(840, 258, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 0, { label: 'GRASS', ns: 7.5, lr: 20 });
-knob(604, 330, 18, 0.62, '2.40K', 'CUTOFF');
-knob(682, 330, 18, 0.35, '35 %', 'GAIN');
-knob(760, 330, 18, 0.6, '4', 'POLES');
-knob(840, 330, 18, 0.8, '60 %', 'ENV LVL');
-rule(570, 386, 882, 386);
-sub(570, 412, 'ENV', { size: 9.5 });
+filterOled(570, 106, 312, 96, { sel: 3, label: ' ', right: '2.40K' });  // caption drawn live by the plug-in
+selector(604, 244, 11, ['OFF', 'ON'], 1, { label: 'LP' });
+selector(682, 244, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 0, { label: 'HP', ns: 7.5, lr: 20 });
+selector(760, 244, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 1, { label: 'COMB', ns: 7.5, lr: 20 });
+selector(840, 244, 11, ['OFF', 'ADD', 'MULT', 'MAX'], 0, { label: 'GRASS', ns: 7.5, lr: 20 });
+knob(604, 306, 18, 0.62, '2.40K', 'CUTOFF');
+knob(682, 306, 18, 0.35, '35 %', 'GAIN');
+knob(760, 306, 18, 0.6, '4', 'POLES');
+knob(840, 306, 18, 0.8, '60 %', 'ENV LVL');
+rule(570, 358, 882, 358);
+sub(570, 386, 'ENV', { size: 9.5 });
 [['A', '20 MS', 0.25], ['D', '350 MS', 0.5], ['S', '30 %', 0.3], ['R', '300 MS', 0.45]].forEach((k, i) => {
-  knob(640 + i * 66, 408, 9, k[2], null, null);
-  text(640 + i * 66 + 14, 405, k[0], { size: 9 });
-  dyn (() => otext(640 + i * 66 + 14, 417, k[1], T.muted, 'start', 7.5));
+  // the same size as the amp's ADSR row
+  knob(634 + i * 62, 382, 15, k[2], k[1], k[0], { vs: 8.5 });
 });
 
 chevron(904, 252);

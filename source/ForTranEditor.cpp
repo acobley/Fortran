@@ -166,23 +166,23 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 
 	// ---- SPECTRAL FILTER --------------------------------------------------
 	addLamp (kBypass, 844., 94.);
-	mFilterOled = new PvFilterOled (CRect (570., 106., 882., 214.));
+	mFilterOled = new PvFilterOled (CRect (570., 106., 882., 202.));
 	frame->addView (mFilterOled);
-	addSelector (kLowPassState,  604., 258., 11., offOn,   8.5, 22.);
-	addSelector (kHighPassState, 682., 258., 11., fourWay, 7.5, 20.);
-	addSelector (kCombState,     760., 258., 11., fourWay, 7.5, 20.);
-	addSelector (kGrassState,    840., 258., 11., fourWay, 7.5, 20.);
+	addSelector (kLowPassState,  604., 244., 11., offOn,   8.5, 22.);
+	addSelector (kHighPassState, 682., 244., 11., fourWay, 7.5, 20.);
+	addSelector (kCombState,     760., 244., 11., fourWay, 7.5, 20.);
+	addSelector (kGrassState,    840., 244., 11., fourWay, 7.5, 20.);
 	{
 		const ParamID tags[4] = { kCutoff, kFilterGain, kPoles, kFilterLevel };
 		const double xs[4] = { 604., 682., 760., 840. };
 		for (int i = 0; i < 4; ++i)
-			addValue (addKnob (tags[i], xs[i], 330., 18.), xs[i], 359., 9.5);
+			addValue (addKnob (tags[i], xs[i], 306., 18.), xs[i], 335., 9.5);
 	}
+	// The filter envelope, the same size as the amp's ADSR row.
 	for (int i = 0; i < 4; ++i)
 	{
-		const double x = 640. + i * 66.;
-		addValue (addKnob (static_cast<ParamID> (kFilterAttack + i), x, 408., 9.),
-		          x + 14., 417., 7.5, SciFi::Align::Left, Pv::kMuted);
+		const double x = 634. + i * 62.;
+		addValue (addKnob (static_cast<ParamID> (kFilterAttack + i), x, 382., 15.), x, 408., 8.5);
 	}
 
 	// ---- AMP ----------------------------------------------------------------
