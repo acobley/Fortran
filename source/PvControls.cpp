@@ -876,7 +876,6 @@ void PvRingsOled::drawContent (CDrawContext* context)
 				context->setFrameColor (sel ? Pv::kViolet : Pv::alpha (Pv::kViolet, 0.6));
 				context->drawGraphicsPath (p, CDrawContext::kPathStroked);
 			}
-			oledText (context, mRate[static_cast<size_t> (i)], c.x, c.y + 4., Pv::kViolet, SciFi::Align::Centre, 7.);
 			if (mLive)
 			{
 				// the LFO itself, running round the ring
@@ -886,6 +885,9 @@ void PvRingsOled::drawContent (CDrawContext* context)
 				disc (context, d, 2.2, hex (0xffffff));
 			}
 		}
+		// the rate shows even at depth 0, so it can be set before it is heard
+		oledText (context, mRate[static_cast<size_t> (i)], c.x, c.y + 4.,
+		          dv > 0.f ? Pv::kViolet : Pv::alpha (Pv::kOledText, 0.7), SciFi::Align::Centre, 7.);
 		oledText (context, std::to_string (i + 1), c.x, r.top + 96., sel ? Pv::kViolet : Pv::kOledText,
 		          SciFi::Align::Centre, 8.);
 	}

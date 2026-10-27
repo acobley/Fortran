@@ -108,7 +108,7 @@ knob(734, 540, 18, 0.3, '20 %', 'RATE');
 knob(796, 540, 18, 0, 'OFF', 'DEPTH');
 line(846, 486, 846, 612, '#3a3a3a', 1);
 oled(862, 488, 308, 122);
-otext(870, 502, 'HARMONIC LFOS  RATE / DEPTH', T.oledText, 'start', 8.5);
+otext(870, 502, 'HARMONIC LFOS  DEPTH OUTSIDE, RATE INSIDE', T.oledText, 'start', 8.5);
 dyn (() => {
   for (let i = 0; i < 10; i++) {
     const x = 878 + i * 29.5, cy = 548, r = 11, dv = P.lfoDepth[i], rt = P.lfoRate[i];
