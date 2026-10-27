@@ -206,7 +206,7 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
 - [x] 🤖 Harmonic LFOs on the ring screen, and following their controls on
       sounding notes
 - [x] 🤖 `installer/release-notes-1.3.0.0.md`
-- [ ] 🧑 Merge `Polivoks` into `main`
+- [x] 🧑 Merge `Polivoks` into `main`  ✅ 27 Oct
 - [ ] 🧑 `installer/build-release.sh`
 - [ ] 🧑 `auval -v aumu FTrn AECo` against the Release build
 - [ ] 🧑 `installer/publish-release.sh` — checksum, push, tag `v1.3.0.0`,
