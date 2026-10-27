@@ -64,7 +64,7 @@ endif()
 # loses it.
 #-----------------------------------------------------------------------------
 set(PLUGIN_NAME         "ForTran")
-set(PLUGIN_VERSION      "1.2.1.0")
+set(PLUGIN_VERSION      "1.3.0.0")
 set(PLUGIN_DESCRIPTION  "ForTran - additive formant synthesiser")
 set(PLUGIN_COMPANY      "AE Cobley")
 set(PLUGIN_BUNDLE_ID    "audio.fortran.vst3")

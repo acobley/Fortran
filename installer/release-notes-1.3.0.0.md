@@ -1,36 +1,38 @@
-# ForTran 1.2.1.0
+# ForTran 1.3.0.0
 
 A polyphonic additive/formant synthesiser for macOS, as a **VST3** and an
 **Audio Unit**. Originally a Cakewalk DXi written in 2003; this is the port.
 
-## What changed since 1.2.0.0
+## What changed since 1.2.1.0
 
-- **The maker is now "AE Cobley"**, in both formats — it was "A. E. Cobley".
-  REAPER files an Audio Unit's presets under its name cut off at the first
-  full stop, so every A. E. Cobley Audio Unit shared one REAPER preset list
-  and showed the others' presets, which did nothing when chosen. The
-  plug-in's identity codes are unchanged, so **projects saved with earlier
-  versions still open** with ForTran in place.
-- **The factory presets now install to
-  `/Library/Audio/Presets/AE Cobley/ForTran`**, the folder both formats now
-  look in.
-- **The version is reported correctly.** Earlier builds told hosts they were
-  1.0.0.1 (VST3) and 1.0.0 (Audio Unit) whatever the release; this one says
-  1.2.1.0.
+**A new panel.** The window is now a black instrument panel, 1200 × 640:
+knurled knobs with printed scales, rotary switches, red jewel lamps and small
+colour screens, lettered throughout in a 70s sci-fi face, with a light worn
+finish. Nothing in the sound or the parameters changed, so **projects and
+presets from earlier versions open as they were**.
 
-Nothing in the sound changed.
-
-**After upgrading**, some things stay where earlier versions left them:
-
-- The old factory preset folder, `/Library/Audio/Presets/A. E. Cobley/ForTran`,
-  is not removed by the installer. Nothing looks there now; see
-  *Uninstalling* to remove it.
-- Presets **you** saved in a host that files them by maker are in
-  `~/Library/Audio/Presets/A. E. Cobley/ForTran`. Move them to
-  `~/Library/Audio/Presets/AE Cobley/ForTran` to see them again.
-- In REAPER, AU presets you saved earlier stay in REAPER's old shared list
-  and will not appear under the new name. The VST3 is unaffected.
-- Some hosts list the plug-in under its maker; look under **AE Cobley**.
+- **Every partial at once.** The partial bank shows all ten partials' level,
+  phase, invert and envelope switch together. Click a numbered ring (or
+  ‹ ›) to put a partial's envelope and harmonic LFO in the PARTIAL box;
+  **Copy n to all** copies that box to the other nine.
+- **Values on the panel.** Each knob's value is printed under it. Hovering
+  still shows the full name and value; Alt-click or double-click a knob to
+  return it to its default.
+- **Live screens.** While a note sounds, the partial bars show what each
+  partial is really putting out, with the output waveform behind them; the
+  filter screen's dots slide along the response as the filter envelope
+  sweeps; the amp and partial envelopes carry a playhead; a voice meter in
+  the header counts the sounding notes.
+- **The harmonic LFOs are on the panel.** The pop-up is gone: drag one of the
+  ten rings up or down for depth, sideways for rate (the inner arc and the
+  figure under the ring show the rate; a dot runs round at that speed). The
+  harmonic LFOs now also **follow their controls on notes already
+  sounding** - the one setting that does; everything else is still taken
+  when a note starts, as in the original.
+- **The filter envelope's knobs** are full size.
+- The header shows when the copy you are running was built.
+- Moving a control now tells the host where an edit starts and ends, so
+  automation records cleanly.
 
 ## Factory presets
 
@@ -51,7 +53,7 @@ tremolo and a per-harmonic LFO; sixteen voices.
 
 ## Installing
 
-Download `ForTran-1.2.1.0.pkg` and open it. The installer offers each part
+Download `ForTran-1.3.0.0.pkg` and open it. The installer offers each part
 separately:
 
     /Library/Audio/Plug-Ins/VST3/ForTran.vst3
@@ -95,7 +97,7 @@ A `.pkg` never will, so:
 sudo rm -rf /Library/Audio/Plug-Ins/VST3/ForTran.vst3
 sudo rm -rf /Library/Audio/Plug-Ins/Components/ForTran.component
 sudo rm -rf "/Library/Audio/Presets/AE Cobley/ForTran"
-sudo rm -rf "/Library/Audio/Presets/A. E. Cobley/ForTran"   # up to 1.2.0.0
+sudo rm -rf "/Library/Audio/Presets/A. E. Cobley/ForTran"   # 1.2.0.0 and earlier
 ```
 
 The last two lines take the factory presets with them. Anything you saved yourself
@@ -104,7 +106,7 @@ lives in your own `~/Library/Audio/Presets` and is untouched.
 ## Checksum
 
 ```
-SHA-256: 424a275cc48a07531fed54bad9a89346d2a3e61c9936fbaa1e163f39d1836568
+SHA-256: <paste from: shasum -a 256 installer/ForTran-1.3.0.0.pkg>
 ```
 
 ---

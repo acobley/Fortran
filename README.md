@@ -53,7 +53,7 @@ section 7.
 
 ## Using it
 
-**The Polivoks panel (branch `Polivoks`).** The editor is now the black-panel
+**The panel (1.3.0.0).** The editor is now the black-panel
 design in `Designs/ForTran-Polivoks-2b-SpectrumBank-StudioWorn.png`, 1200 × 640:
 knurled knobs with printed scales, rotary switches, red jewel lamps, colour
 OLEDs and the 70s sci-fi lettering, lightly worn. The partial bank shows every

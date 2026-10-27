@@ -194,6 +194,24 @@ delivers the controller to the parameter. See PORTING-NOTES section 7.
 - [ ] 🧑 `installer/publish-release.sh` — checksum, push, tag `v1.2.0.0`,
       GitHub Release
 
+## 1.3.0.0 — the Polivoks panel
+
+- [x] 🤖 New editor: the black panel from `Designs/ForTran-Polivoks-2b`,
+      drawn with paths over two 2x bitmaps rendered from
+      `tools/polivoks/d2p.js`; the 70s sci-fi lettering as stroked paths
+- [x] 🤖 Partial bank with every partial at once; one PARTIAL box re-pointed
+      at the selected partial; Copy to all
+- [x] 🤖 Live screens from a per-block LiveState (bars, filter sweep,
+      envelope playheads, LFO rings, voice meter)
+- [x] 🤖 Harmonic LFOs on the ring screen, and following their controls on
+      sounding notes
+- [x] 🤖 `installer/release-notes-1.3.0.0.md`
+- [ ] 🧑 Merge `Polivoks` into `main`
+- [ ] 🧑 `installer/build-release.sh`
+- [ ] 🧑 `auval -v aumu FTrn AECo` against the Release build
+- [ ] 🧑 `installer/publish-release.sh` — checksum, push, tag `v1.3.0.0`,
+      GitHub Release
+
 ---
 
 ## Throughout

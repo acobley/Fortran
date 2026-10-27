@@ -41,9 +41,9 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>1.2.1</string>
+	<string>1.3.0</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.2.1</string>
+	<string>1.3.0</string>
 
 	<key>AudioComponents</key>
 	<array>
@@ -62,13 +62,13 @@
 			<string>aumu</string>
 			<!-- 0x00010201 == 1.2.1 -->
 			<key>version</key>
-			<integer>66049</integer>
+			<integer>66304</integer>
 		</dict>
 	</array>
 
 	<!-- Read by the wrapper with sscanf("%x"), so this one is a hex string. -->
 	<key>AudioUnit Version</key>
-	<string>00010201</string>
+	<string>00010300</string>
 
 	<!-- MUST match what ForTranProcessor::setBusArrangements accepts.
 	     ForTran is an instrument: no audio input, one stereo output.
