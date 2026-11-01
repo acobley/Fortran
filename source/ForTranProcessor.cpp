@@ -3,6 +3,7 @@
 //------------------------------------------------------------------------
 
 #include "ForTranProcessor.h"
+#include "DenormalGuard.h"
 #include "ForTranState.h"
 #include "ForTranIDs.h"
 #include "VoiceParamsMap.h"
@@ -198,7 +199,16 @@ void ForTranProcessor::renderSegment (ProcessData& data, int32 offset, int32 num
 			mOutputGain = mOutputTarget;       // first block, no ramp
 		for (int32 i = 0; i < numSamples; ++i)
 		{
-			mOutputGain += (mOutputTarget - mOutputGain) * mOutputCoeff;
+			// SNAPS once within 1e-9 (about -180 dB): aimed at exactly 0 -
+			// the Output Level knob at the bottom - a one-pole never gets
+			// there, but sticks at the bottom of the denormal range for
+			// good, slow on x86 (AUDIT-denormals-aliasing.md).
+			if (mOutputGain != mOutputTarget)
+			{
+				mOutputGain += (mOutputTarget - mOutputGain) * mOutputCoeff;
+				if (std::fabs (mOutputTarget - mOutputGain) < 1e-9)
+					mOutputGain = mOutputTarget;
+			}
 			const float g = static_cast<float> (mOutputGain);
 			mScratch[static_cast<size_t> (i) * 2]     *= g;
 			mScratch[static_cast<size_t> (i) * 2 + 1] *= g;
@@ -231,6 +241,10 @@ void ForTranProcessor::renderSegment (ProcessData& data, int32 offset, int32 num
 //------------------------------------------------------------------------
 tresult PLUGIN_API ForTranProcessor::process (ProcessData& data)
 {
+	// Flush-to-zero for this call only; the host's FPU mode comes back on
+	// return. See DenormalGuard.h.
+	ScopedFlushDenormals noDenormals;
+
 	applyParameterChanges (data.inputParameterChanges);
 
 	mOutputTarget = outputGain (mParams[kOutputLevel]);

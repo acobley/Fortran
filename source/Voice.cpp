@@ -12,6 +12,11 @@ namespace ForTran {
 namespace {
 constexpr double dPI  = 3.14159265358979323846264338327950288419716939937510;
 constexpr double d2PI = dPI * 2.0;
+
+/** How much of the band below Nyquist a partial takes to fade out in:
+    5 %, so at 48 kHz a partial is whole to 22.8 kHz and gone at 24. See
+    renderSample, "THE PARTIALS STOP AT NYQUIST". */
+constexpr double kNyquistFade = 0.05;
 /** The DXi's dPIm - the phase offsets are built with a NEGATIVE pi. */
 constexpr double dPIm = -dPI;
 
@@ -327,6 +332,24 @@ float Voice::renderSample (const FilterInfo& filter)
 		theta[k]     = mFilterTheta[k] + frac * mFilterDTheta[k];
 	}
 
+	// THE PARTIALS STOP AT NYQUIST. The DXi summed all ten whatever the
+	// note, so partial k + 1 folded back as an inharmonic tone once
+	// (k + 1) x f0 passed half the sample rate - the 10th from D#7 up at
+	// 48 kHz, the 5th from D#8 (AUDIT-denormals-aliasing.md). Each
+	// partial now fades out over the last kNyquistFade of the band below
+	// Nyquist and is skipped beyond it, judged on THIS sample's phase
+	// step, so a bend or vibrato that carries one across fades it rather
+	// than switching it - no click. Below about C7 every fade is exactly
+	// 1, nothing is multiplied by it, and the voice is bit-identical to
+	// the DXi port.
+	const double step = std::fabs (mStep * mBendFactor + vibrato);   // radians per sample
+	auto nyquistFade = [step] (int k)
+	{
+		const double wk = static_cast<double> (k + 1) * step;
+		const double f = (dPI - wk) / (dPI * kNyquistFade);
+		return (f >= 1.0) ? 1.0 : (f <= 0.0 ? 0.0 : f);
+	};
+
 	// Ten partials at k*theta. dFormantLFO in the original is a constant
 	// 1.0 - the per-formant LFO was initialised at note-on and never read -
 	// so it is not carried over.
@@ -335,12 +358,28 @@ float Voice::renderSample (const FilterInfo& filter)
 	{
 		for (int k = 0; k < kNumPartials; ++k)
 		{
-			const double partialTheta = (k + 1) * mTheta + theta[k] + mHarmPhase[k];
+			// The envelope runs whether or not its partial is heard, so a
+			// partial that comes back below Nyquist comes back where its
+			// envelope has got to.
 			const float fe = mFormantEnvelope[k].nextValue ();
-			sum += fe * std::sin (partialTheta)
-			       * mHarmLevel[k] * magnitude[k];
 			mLiveFormant[k] = fe;
-			mLivePartial[k] = fe * mHarmLevel[k] * magnitude[k];
+			const double fade = nyquistFade (k);
+			if (fade == 0.0)
+			{
+				mLivePartial[k] = 0.f;
+				continue;
+			}
+			const double partialTheta = (k + 1) * mTheta + theta[k] + mHarmPhase[k];
+			double term = fe * std::sin (partialTheta)
+			              * mHarmLevel[k] * magnitude[k];
+			float live = fe * mHarmLevel[k] * magnitude[k];
+			if (fade < 1.0)
+			{
+				term *= fade;
+				live *= static_cast<float> (fade);
+			}
+			sum += term;
+			mLivePartial[k] = live;
 		}
 	}
 	else
@@ -353,16 +392,30 @@ float Voice::renderSample (const FilterInfo& filter)
 		// the original could only have meant.
 		for (int k = 0; k < kNumPartials; ++k)
 		{
-			const double partialTheta = (k + 1) * mTheta + theta[k] + mHarmPhase[k];
 			const double lfo = (mHarmLfoDepth[k] != 0.f)
 			                       ? 1.0 + mHarmLfoDepth[k] * std::sin (mHarmLfoTheta[k])
 			                       : 1.0;
 			const float fe = mFormantEnvelope[k].nextValue ();
-			sum += lfo * fe * std::sin (partialTheta)
-			       * mHarmLevel[k] * magnitude[k];
 			mLiveFormant[k] = fe;
-			mLivePartial[k] = static_cast<float> (lfo * fe * mHarmLevel[k] * magnitude[k]);
-			mHarmLfoTheta[k] += mHarmLfoStep[k];
+			mHarmLfoTheta[k] += mHarmLfoStep[k];     // runs, heard or not
+
+			const double fade = nyquistFade (k);
+			if (fade == 0.0)
+			{
+				mLivePartial[k] = 0.f;
+				continue;
+			}
+			const double partialTheta = (k + 1) * mTheta + theta[k] + mHarmPhase[k];
+			double term = lfo * fe * std::sin (partialTheta)
+			              * mHarmLevel[k] * magnitude[k];
+			double live = lfo * fe * mHarmLevel[k] * magnitude[k];
+			if (fade < 1.0)
+			{
+				term *= fade;
+				live *= fade;
+			}
+			sum += term;
+			mLivePartial[k] = static_cast<float> (live);
 		}
 	}
 

@@ -1907,6 +1907,72 @@ ratio of 1.992.
 > square root on CC7, and CC10's unity-at-centre pan — rather than whether
 > anything arrives at all. See `PORT-CHECKLIST.md`.
 
+### The partials stop at Nyquist (1 Nov 2026)
+
+A deliberate deviation from the DXi, found by the DXi-DEv audit
+(`AUDIT-denormals-aliasing.md`). The DXi summed all ten partials at
+`(k + 1) × theta` whatever the note, with no test against Nyquist, so partial
+`k + 1` folded back as an inharmonic tone once `(k + 1) × f0` passed half the
+sample rate:
+
+* the 10th from D♯7 (MIDI 99) at 48 kHz, or C♯7 at 44.1 kHz;
+* the 5th from D♯8 (MIDI 111);
+* the 2nd from G9.
+
+Bend and vibrato pushed the threshold lower.
+
+`Voice::renderSample` now judges each partial on **this sample's** phase step,
+`|mStep × mBendFactor + vibrato|`, the same step the advance uses. A partial
+fades out over the last `kNyquistFade` (5 %) of the band below Nyquist (at
+48 kHz, whole to 22.8 kHz and gone at 24) and is skipped entirely beyond it,
+including its `sin()`. A bend or vibrato that carries a partial across
+therefore fades it rather than switching it, so there is no click.
+
+* **The envelopes and the per-harmonic LFOs keep running** for a skipped
+  partial, so one that comes back below Nyquist comes back where its envelope
+  and LFO have got to.
+* **The panel's live partial levels** (`mLivePartial`) include the fade, so the
+  display shows what is heard. A culled partial reads 0.
+* **Below about C7, nothing changes.** Every fade is exactly 1.0, and the term
+  is only multiplied when it is below 1, so the voice is bit-identical to the
+  previous build. Six 2 s renders compared byte for byte: C4, C6 and C7, with
+  and without the ladder, the per-harmonic LFO and a +2-semitone bend.
+
+Measured, with the worst folded partial relative to the fundamental at 48 kHz:
+
+| Note | Partials over Nyquist | Ladder bypassed, before → after | Ladder in, before → after |
+|---|---|---|---|
+| E7 (2637 Hz) | 1 | −9.9 → −150 dB | −58 → −167 dB |
+| G♯7 (3322 Hz) | 3 | −7.8 → −155 | −44 → −170 |
+| C8 (4186 Hz) | 5 | −5.9 → −155 | −16 → −154 |
+| G8 (6272 Hz) | 7 | −4.2 → −154 | **+0.2** → −155 |
+
+With the ladder in, the folds were sometimes louder than the fundamental. They
+land low, where the ladder passes them, while the fundamental sits above its
+0.198 × Nyquist corner.
+
+`VoiceTests` 14 checks:
+
+* C8 with the ladder bypassed: no folded partial above −60 dB. The test's
+  unwindowed correlation leaks to about −78 dB; against the old `Voice.cpp`
+  it reads −6.0;
+* the negative control: partial 5 at 20.9 kHz is still there;
+* D♯7 bent up a fifth across Nyquist: finite, and folds below −60 dB (−6.9
+  against the old code);
+* `ScopedFlushDenormals`.
+
+**Also:** the output gain smoother in `ForTranProcessor::process` now snaps to
+its target within 1e-9. Aimed at exactly 0 (the Output Level knob at the
+bottom), a one-pole otherwise sticks at the bottom of the denormal range for
+good. `ScopedFlushDenormals` (`source/DenormalGuard.h`) wraps `process()`.
+
+This copy of the header also has a fix the others lack. The compiler does not
+know a multiply depends on the FPU control register, and on arm64 at −O2 it
+scheduled a multiply written inside the guard after the restore. The asm now
+carries `"memory"` clobbers (with a barrier beside `_mm_setcsr` on x86), which
+pin every load and store to its own side of the switch. Adding the header adds
+a file to `source/`, so re-run `./setup-xcode.sh` before the next Xcode build.
+
 ### Not yet carried over
 
 * **The waveform capture** (`pfWaveShape`, zero-crossing triggered) that fed

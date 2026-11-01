@@ -13,6 +13,7 @@
 #include "Adsr.h"
 #include "Voice.h"
 #include "FilterInfo.h"
+#include "DenormalGuard.h"
 #include <cmath>
 #include <cstdio>
 #include <initializer_list>
@@ -690,6 +691,73 @@ int main ()
 			std::printf("   two voices at once: 247 Hz %.4f   415 Hz %.4f (both should sound)\n", up, down);
 			chk(up > 0.01 && down > 0.01, "the two voices are not gliding independently");
 		}
+	}
+
+	// 14. The partials stop at Nyquist. The DXi summed all ten whatever
+	//     the note, so above about D#7 the top ones folded back as
+	//     inharmonic tones: at C8 (4186 Hz) partials 6-10 sit at 25-42 kHz
+	//     and landed at |k f0 - 48000|, the worst at -5.9 dB under the
+	//     fundamental with the ladder bypassed.
+	std::printf("14. partials above Nyquist are not summed\n");
+	{
+		VoiceParams p = defaultParams();
+		const double f0 = 440.0 * std::pow(2.0, (108 - 69) / 12.0);   // C8
+		Voice v; v.noteOn(108, f0, 100, 127, 64, p, sr);
+		v.setLadderEnabled(false);
+		renderMono(v, fi, 4800);                                      // past the attack
+		auto mono = renderMono(v, fi, 16384);
+
+		const double fund = bandMagnitude(mono, f0, sr);
+		double worst = 0.0;
+		for (int k = 6; k <= 10; ++k)
+		{
+			const double folded = std::fabs(k * f0 - 48000.0);
+			worst = std::fmax(worst, bandMagnitude(mono, folded, sr));
+		}
+		const double worstDb = 20.0 * std::log10(worst / fund + 1e-300);
+		// NEGATIVE CONTROL: partial 5, at 20.9 kHz, is below the fade and
+		// must still be there - the cull is at Nyquist, not a low-pass.
+		const double fifthDb = 20.0 * std::log10(bandMagnitude(mono, 5.0 * f0, sr) / fund);
+		std::printf("   C8: worst folded partial %.1f dB, partial 5 (20.9 kHz) %.1f dB, re the fundamental\n",
+		            worstDb, fifthDb);
+		// -60 dB, not lower: bandMagnitude is an unwindowed correlation,
+		// and the strong partials' leakage alone reads about -78 dB.
+		chk(worstDb < -60.0, "a partial above Nyquist folded back into the band");
+		chk(fifthDb > -12.0, "NEGATIVE CONTROL: partial 5, below Nyquist, went missing");
+
+		// A bend that carries partials across Nyquist: finite, and the
+		// partials above it are still gone. D#7 bent up a fifth puts
+		// partials 7-10 over.
+		VoiceParams q = defaultParams();
+		const double d7 = 440.0 * std::pow(2.0, (99 - 69) / 12.0);
+		Voice b; b.noteOn(99, d7, 100, 127, 64, q, sr);
+		b.setLadderEnabled(false);
+		bool finite = true;
+		for (int i = 0; i < 48; ++i)
+		{
+			b.setPitchBend(1.0 + 0.5 * i / 47.0);               // up a fifth over 0.5 s
+			for (float x : renderMono(b, fi, 500)) finite = finite && std::isfinite(x);
+		}
+		auto bent = renderMono(b, fi, 16384);
+		const double bf0 = d7 * 1.5;
+		double bentWorst = 0.0;
+		for (int k = 7; k <= 10; ++k)
+			bentWorst = std::fmax(bentWorst, bandMagnitude(bent, std::fabs(k * bf0 - 48000.0), sr));
+		const double bentDb = 20.0 * std::log10(bentWorst / bandMagnitude(bent, bf0, sr) + 1e-300);
+		std::printf("   D#7 bent up a fifth: worst folded partial %.1f dB\n", bentDb);
+		chk(finite, "a bend across Nyquist produced a bad sample");
+		chk(bentDb < -60.0, "a partial bent above Nyquist folded back");
+
+		// The output-gain guard process() runs under.
+		// Every value through memory (volatile): the guard orders memory
+		// accesses round its mode switch, not register arithmetic.
+		volatile float tiny = 1.0e-37f, half = 0.01f;
+		volatile float before = tiny * half;
+		volatile float inside = 1.f;
+		{ ScopedFlushDenormals guard; inside = tiny * half; }
+		volatile float after = tiny * half;
+		chk(before != 0.f && inside == 0.f && after == before && ScopedFlushDenormals::supported(),
+		    "ScopedFlushDenormals: flush-to-zero inside, the host's mode restored after");
 	}
 
 	std::printf(fails ? "\n%d CHECK(S) FAILED\n" : "\nall checks passed\n", fails);
