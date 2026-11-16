@@ -66,7 +66,7 @@ inline double lfoStep (double rateSeconds, double sampleRate)
 void Voice::noteOn (int noteNumber, double frequency, int velocity,
                     int channelVolume, int pan,
                     const VoiceParams& params, double sampleRate,
-                    double glideFromHz)
+                    double glideFromHz, const double* lfoPhase)
 {
 	mActive        = true;
 	mReleased      = false;
@@ -123,10 +123,13 @@ void Voice::noteOn (int noteNumber, double frequency, int velocity,
 		// DXi: fPhaseSliders = dPIm * (0.5 - control). Note the negative pi.
 		mHarmPhase[i] = static_cast<float> (dPIm * (0.5 - params.harmPhase[i]));
 
-		// The per-harmonic LFO. Theta starts at zero as the DXi's
-		// dFormantsLFOTheta[i-1]=0.0 did, and sin(0) is 0, so the multiplier
-		// starts at exactly 1 and a note cannot begin with a step.
-		mHarmLfoTheta[i] = 0.0;
+		// The per-harmonic LFO. Retriggered, theta starts at zero as the
+		// DXi's dFormantsLFOTheta[i-1]=0.0 did, and sin(0) is 0, so the
+		// multiplier starts at exactly 1. Free running, it starts wherever
+		// Synth's shared phase has got to, so the multiplier can start
+		// anywhere in 1 +/- depth - which is not a step, because the amp
+		// and formant envelopes both start from zero underneath it.
+		mHarmLfoTheta[i] = lfoPhase ? lfoPhase[i] : 0.0;
 		mHarmLfoStep[i]  = d2PI * harmonicLfoHz (params.harmLfoRate[i]) / sampleRate;
 		mHarmLfoDepth[i] = params.harmLfoDepth[i];
 		if (mHarmLfoDepth[i] != 0.f)

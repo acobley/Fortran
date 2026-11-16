@@ -328,6 +328,9 @@ bool PLUGIN_API ForTranEditor::open (void* parent, const PlatformType& platformT
 			    hideReadout ();
 	    });
 	frame->addView (mRings);
+	// Free run for the harmonic LFOs, at the right-hand end of the section's
+	// title row, over the rings it governs.
+	addLamp (kHarmLfoFreeRun, 1162., 470.);
 
 	// ---- the wear, then the readout over everything ------------------------
 	if (mWearBitmap)
@@ -483,6 +486,12 @@ std::string ForTranEditor::readoutTextFor (ParamID tag) const
 		case kPoles:
 			std::snprintf (buf, sizeof (buf), "%s: %d", def.title,
 			               static_cast<int> (1.0 + inner * 10.0));
+			break;
+
+		// Free run's opposite is retrigger, not "off" - the LFOs still run.
+		case kHarmLfoFreeRun:
+			std::snprintf (buf, sizeof (buf), "%s: %s", def.title,
+			               (inner >= 0.5) ? "On" : "Off, restart each note");
 			break;
 
 		default:

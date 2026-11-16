@@ -103,6 +103,12 @@ struct VoiceParams
 	float harmLfoRate[10]  = {};
 	float harmLfoDepth[10] = {};
 
+	/** False: each note starts its ten harmonic LFOs at phase zero. True:
+	    they free run - Synth keeps one set of phases going whatever the
+	    notes do, and hands it to noteOn as `lfoPhase`. The voice itself
+	    only ever sees a start phase; the flag is Synth's to act on. */
+	bool harmLfoFreeRun = false;
+
 	FilterInfo::ShapeStates shapes;
 };
 
@@ -142,11 +148,16 @@ public:
 	    the player is coming FROM, which on a polyphonic synth is a
 	    question Synth answers (see chooseGlideSource). Zero, or the target
 	    itself, or a zero `params.portamento`, all mean no glide and the
-	    note simply starts on pitch. */
+	    note simply starts on pitch.
+
+	    `lfoPhase`, if given, is where each of the ten harmonic LFOs
+	    starts, in radians - the free-running phases Synth keeps. Null is
+	    retrigger: all ten start at zero, as they always did. */
 	void noteOn (int noteNumber, double frequency, int velocity,
 	             int channelVolume, int pan,
 	             const VoiceParams& params, double sampleRate,
-	             double glideFromHz = 0.0);
+	             double glideFromHz = 0.0,
+	             const double* lfoPhase = nullptr);
 
 	void noteOff ();
 

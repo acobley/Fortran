@@ -107,6 +107,8 @@ sub(712, 498, 'TREMOLO', { size: 9.5 });
 knob(734, 540, 18, 0.3, '20 %', 'RATE');
 knob(796, 540, 18, 0, 'OFF', 'DEPTH');
 line(846, 486, 846, 612, '#3a3a3a', 1);
+// Free run for the harmonic LFOs: a lamp at the end of the title row.
+text(1153, 473.5, 'HARMONIC LFOS FREE RUN', { size: 8.6, anchor: 'end' }); lamp(1162, 470, 0);
 oled(862, 488, 308, 122);
 otext(870, 502, 'HARMONIC LFOS  DEPTH OUTSIDE, RATE INSIDE', T.oledText, 'start', 8.5);
 dyn (() => {

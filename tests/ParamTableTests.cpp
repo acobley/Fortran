@@ -21,7 +21,7 @@ int main(){
     printf("parameters: %d\n", (int)kNumParams);
     // 122 from the DXi's own Parameters.h, plus the 20 harmonic LFO controls
     // appended after them. The split is asserted below, where it matters.
-    chk(kNumParams==146,"count is not 122 DXi + 20 LFO + trim + ladder + pan + glide",0);
+    chk(kNumParams==147,"count is not 122 DXi + 20 LFO + trim + ladder + pan + glide + free run",0);
     for(int i=0;i<(int)kNumParams;++i){
         const ParamDef&d=kParams[i];
         chk(d.id==(Steinberg::Vst::ParamID)i,"id does not match its index",i);
@@ -208,7 +208,7 @@ int main(){
     {
         printf("harmonic LFO: ids %d..%d and %d..%d, of %d\n",
                kHarmLfoRate1, kHarmLfoRate10, kHarmLfoDepth1, kHarmLfoDepth10, (int)kNumParams);
-        chk(kNumParams == 146, "the table is not 122 DXi + 20 LFO + trim + ladder + pan + glide", 0);
+        chk(kNumParams == 147, "the table is not 122 DXi + 20 LFO + trim + ladder + pan + glide + free run", 0);
 
         // Every DXi parameter must still be where it was.
         chk(kEnable == 0, "kEnable moved", 0);
@@ -219,7 +219,8 @@ int main(){
         chk(kLadderEnable == kOutputLevel + 1, "the ladder switch is not after the trim", 0);
         chk(kPan == kLadderEnable + 1, "pan is not after the ladder switch", 0);
         chk(kPortamento == kPan + 1, "the glide control is not after pan", 0);
-        chk(kPortamento == (int)kNumParams - 1, "the glide control is not last", 0);
+        chk(kHarmLfoFreeRun == kPortamento + 1, "the LFO free-run switch is not after the glide", 0);
+        chk(kHarmLfoFreeRun == (int)kNumParams - 1, "the LFO free-run switch is not last", 0);
         chk(kParams[kLadderEnable].plainDefault == 1.0,
             "the ladder does not default to IN - that would change the DXi's sound", kLadderEnable);
 
@@ -318,7 +319,6 @@ int main(){
     // Appended after pan, so nothing before it moved; off by default, so a
     // project saved before it existed sounds the same after loading.
     {
-        chk(kPortamento == (int)kNumParams - 1, "portamento is not the last parameter", 0);
         chk(kPan == (int)kPortamento - 1, "portamento was not appended after pan", 0);
         chk(kParams[kPortamento].plainDefault == 0.0, "portamento does not default to off", kPortamento);
         chk(portamentoSeconds(0.0) == 0.0, "portamento at zero is not off", kPortamento);
@@ -343,6 +343,17 @@ int main(){
         }
         printf("glide round trip through seconds: worst error %.3g\n", worst);
         chk(worst < 1e-9, "the glide time does not round-trip", kPortamento);
+    }
+
+    // -- harmonic LFO free run --------------------------------------------
+    // Appended after portamento, and OFF by default: every build before it
+    // restarted the LFOs on each note, so a saved patch must still do that.
+    {
+        chk(kHarmLfoFreeRun == (int)kNumParams - 1, "free run is not the last parameter", 0);
+        chk(kParams[kHarmLfoFreeRun].type == ParamType::Bool, "free run is not a switch", kHarmLfoFreeRun);
+        chk(kParams[kHarmLfoFreeRun].plainDefault == 0.0,
+            "free run defaults ON - that would change every saved patch", kHarmLfoFreeRun);
+        chk(kParams[kHarmLfoFreeRun].stepCount == 1, "free run is not a two-position switch", kHarmLfoFreeRun);
     }
 
     printf("kEnable default = %.0f (DXi shipped this ON)\n", kParams[kEnable].plainDefault);

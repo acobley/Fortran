@@ -276,6 +276,15 @@ enum Param : Steinberg::Vst::ParamID
 	    saved project starts gliding. See the note below. */
 	kPortamento,
 
+	/** The harmonic LFOs' phase at note-on. Off - the default, and what
+	    every build before this did - restarts all ten at zero on every
+	    note, so each note wobbles the same way from its first sample. On,
+	    they FREE RUN: one set of ten phases carries on regardless of notes,
+	    and a new note joins it wherever it has got to, so overlapping
+	    notes move together and repeated notes do not repeat the same
+	    shape. New, appended last so nothing moves. */
+	kHarmLfoFreeRun,
+
 	kNumParams,
 
 	kBypass = 1000,         // standard VST3 bypass (kIsBypass)

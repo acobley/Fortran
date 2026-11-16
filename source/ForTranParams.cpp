@@ -272,6 +272,10 @@ const ParamDef kParams[kNumParams] =
 	// knob. Not smoothed - it is latched at note-on like every other thing
 	// a voice reads, and smoothing a time would mean nothing anyway.
 	{ kPortamento,            "Portamento",          "%",  ParamType::Float,     0.0,  100.0,   0.00,   0.0,   1.0,  0, false },
+
+	// Off, which is retrigger: every note starts its harmonic LFOs at zero,
+	// as every build before this switch did, so no saved patch changes.
+	{ kHarmLfoFreeRun,        "Harmonic LFO Free Run", "", ParamType::Bool,      0.0,    1.0,    0.0,   0.0,   1.0,  1, false },
 };
 
 //------------------------------------------------------------------------

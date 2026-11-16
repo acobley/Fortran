@@ -1438,6 +1438,46 @@ amplitude; there is no phase hook anywhere, and the only trace of a phase
 experiment is one unused `float bPhaseShift` in `NoteState`. Section 4 has
 the evidence.
 
+### Free run: the harmonic LFOs need not restart on every note
+
+Up to 1.3.1.0 every note started all ten harmonic LFOs at phase zero - the
+DXi's `dFormantsLFOTheta[i-1] = 0.0` at note-on, kept. So every note
+wobbled the same way from its first sample, and in a chord the partials of
+every note rose and fell together only by accident of when each was struck.
+
+**`kHarmLfoFreeRun`**, a switch, appended after `kPortamento` (147
+parameters). **Off is the default and is the old behaviour**, so no saved
+project or preset changes; `ParamTableTests` asserts both.
+
+**On, `Synth` keeps one set of ten phases**, `mFreeLfoTheta`, that turns in
+every `render()` call whether anything is sounding or not, at the rates just
+pushed to the voices. A note started with free run on copies those phases
+into its own oscillators instead of zeroing them, and from then on advances
+at the same step - so every free-running note stays locked to the shared
+phase and to every other free-running note, and a rate change mid-note bends
+them all together (`setHarmonicLfo` and the shared phase take the new rate
+at the same block boundary). The processor renders up to each event before
+handling it, so the phase a note picks up is exact to its starting sample.
+
+The shared phases are advanced by `numSamples * step` and wrapped with
+`fmod`; a voice adds its step once per sample. The two drift apart by
+rounding only - `SynthTests` 12 measures 2e-7 rad after 14,000 samples,
+nearly all of it the `float` in `LiveState`.
+
+**Not a step at note-on.** Free running, a note's LFO multiplier starts
+anywhere in `1 +/- depth` rather than at exactly 1, but the amplitude and
+formant envelopes both start from zero underneath it, so nothing is heard
+jump.
+
+The phases are reset to zero by `Synth::reset` (sample-rate change,
+activation), and stand still while the DXi's own Enable switch is off,
+since `render()` is not called then. Vibrato and tremolo are untouched -
+they still restart on every note, as the DXi's did.
+
+On the panel it is a lamp at the right-hand end of the MODULATION title row,
+over the rings it governs. Its readout says "Off, restart each note" rather
+than plain "Off", because the LFOs keep running either way.
+
 ### The harmonic LFO panel
 
 Twenty knobs, on a panel that already has no room for a permanent value

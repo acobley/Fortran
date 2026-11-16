@@ -89,6 +89,10 @@ public:
 
 	int activeVoiceCount () const;
 
+	/** The free-running phase of harmonic `k` (0..9), radians: what the
+	    next note starts its LFO from when free run is on. */
+	double freeLfoPhase (int k) const { return mFreeLfoTheta[k]; }
+
 	// -- waveform capture, for the editor's scope --------------------------
 	//
 	// The DXi captured one cycle of the sounding note in synthNote and its
@@ -159,6 +163,16 @@ private:
 	    push only happens when one has moved. */
 	float mPushedLfoRate[10]  = {};
 	float mPushedLfoDepth[10] = {};
+
+	/** The free-running harmonic LFOs: one phase per harmonic, radians,
+	    kept in 0..2pi. Advanced by every render() call whether or not
+	    anything is sounding or the switch is on - so turning free run on
+	    mid-performance picks up a phase that has been running all along,
+	    and the cost is ten multiply-adds a block. A note started with free
+	    run on copies these and then advances at the same step, so every
+	    free-running note stays locked to them, and to each other. */
+	double mFreeLfoTheta[10] = {};
+
 
 	mutable std::atomic<unsigned> mLiveSeq {0};
 	LiveState mLivePublished;

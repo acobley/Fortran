@@ -86,6 +86,9 @@ void Synth::reset ()
 	mHadNoteOn = false;
 	mSampleClock = 0;
 	mLastNoteOnClock = 0;
+
+	for (double& t : mFreeLfoTheta)
+		t = 0.0;
 }
 
 //------------------------------------------------------------------------
@@ -196,8 +199,13 @@ void Synth::noteOn (int noteNumber, int velocity)
 
 	if (Voice* v = allocateVoice (noteNumber))
 	{
+		// Free run: the note joins the shared LFO phases where they are,
+		// rather than starting all ten from zero. The processor renders up
+		// to each event before handling it, so these are exact to the
+		// sample the note starts on.
 		v->noteOn (noteNumber, noteFrequency (noteNumber), velocity,
-		           mChannelVolume, mPan, mParams, mSampleRate, fromHz);
+		           mChannelVolume, mPan, mParams, mSampleRate, fromHz,
+		           mParams.harmLfoFreeRun ? mFreeLfoTheta : nullptr);
 		v->setPitchBend (mBendFactor);
 		v->setLadderEnabled (mLadderEnabled);
 
@@ -251,6 +259,16 @@ void Synth::render (float* stereo, int numSamples)
 	for (Voice& v : mVoices)
 		if (v.isActive ())
 			v.render (stereo, numSamples, mFilter);
+
+	// The free-running harmonic LFOs move on by this block, at the rates
+	// just pushed to the voices - so they turn exactly as a free-running
+	// voice's own copies do, and a rate change bends both together.
+	constexpr double kTwoPi = 2.0 * 3.14159265358979323846264338327950288;
+	for (int k = 0; k < 10; ++k)
+	{
+		const double step = kTwoPi * harmonicLfoHz (mPushedLfoRate[k]) / mSampleRate;
+		mFreeLfoTheta[k] = std::fmod (mFreeLfoTheta[k] + step * numSamples, kTwoPi);
+	}
 
 	// Only ever compared against itself, to tell one chord from the next.
 	mSampleClock += numSamples;

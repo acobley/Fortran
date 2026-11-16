@@ -68,7 +68,11 @@ envelopes carry a playhead; the LFO rings run. The harmonic LFO pop-up is
 gone: its controls are the ten rings in MODULATION - drag a ring up or down for
 depth, sideways for rate (shift for fine, wheel for depth, shift-wheel for
 rate) - and the RATE and DEPTH knobs in the PARTIAL box. Unlike every other
-setting, the harmonic LFOs follow their controls on notes already sounding. Values are printed under the
+setting, the harmonic LFOs follow their controls on notes already sounding.
+By default each note restarts the ten harmonic LFOs from zero; light the
+**HARMONIC LFOS FREE RUN** lamp at the top right of MODULATION and they free
+run instead - one set of phases that keeps turning between notes, which
+every new note joins wherever it has got to. Values are printed under the
 knobs; hovering still shows the full name and value. Alt-click or double-click
 a knob for its default. The panel and the wear are two bitmaps rendered from
 `tools/polivoks/d2p.js` by `tools/polivoks/make-panel.sh`; the controls are

@@ -349,6 +349,93 @@ int main ()
 		chk(nowG < nowC * 0.5, "the new note started on its own pitch - it did not glide");
 	}
 
+	// -- harmonic LFO free run ---------------------------------------------
+	//
+	// Retrigger (the default) starts every note's ten LFOs at zero. Free run
+	// keeps one set of phases turning through silence and between notes, and
+	// a note joins them where they are - so its phase after n samples is the
+	// whole elapsed time's worth, not just its own.
+	{
+		std::printf("\n12. harmonic LFOs: retrigger, and free run\n");
+		const double sr = 48000.0;
+		auto setup = [sr] (Synth& s, bool freeRun) {
+			s.setSampleRate(sr);
+			setDefaults(s);
+			for (int k = 0; k < 10; ++k)
+			{
+				s.voiceParams().harmLfoRate[k]  = 0.45f + 0.04f * k;
+				s.voiceParams().harmLfoDepth[k] = 0.5f;
+			}
+			s.voiceParams().harmLfoFreeRun = freeRun;
+		};
+		auto step = [sr] (const Synth& s, int k) {
+			return 2.0 * kPI * harmonicLfoHz(const_cast<Synth&>(s).voiceParams().harmLfoRate[k]) / sr;
+		};
+		// Angular distance, so 6.283 and 0.0001 count as close.
+		auto apart = [] (double a, double b) {
+			double d = std::fmod(std::fabs(a - b), 2.0 * kPI);
+			return std::fmin(d, 2.0 * kPI - d);
+		};
+		// Odd block sizes, so the phase has to survive being cut up.
+		auto run = [] (Synth& s, int n) {
+			std::vector<float> buf(512 * 2, 0.f);
+			while (n > 0) { const int b = n < 333 ? n : 333; s.render(buf.data(), b); n -= b; }
+		};
+
+		const int silence = 10007, held = 1000;
+
+		Synth retrig;
+		setup(retrig, false);
+		run(retrig, silence);
+		retrig.noteOn(60, 100);
+		run(retrig, held);
+		LiveState a;
+		chk(retrig.readLiveState(a), "no live state from the retriggered synth");
+
+		Synth freeRun;
+		setup(freeRun, true);
+		run(freeRun, silence);
+		double worstShared = 0.0;
+		for (int k = 0; k < 10; ++k)
+			worstShared = std::fmax(worstShared,
+			                        apart(freeRun.freeLfoPhase(k), step(freeRun, k) * silence));
+		freeRun.noteOn(60, 100);
+		run(freeRun, held);
+		LiveState b;
+		chk(freeRun.readLiveState(b), "no live state from the free-running synth");
+
+		// A second note, later, must land on the same shared phase.
+		run(freeRun, 3333);
+		freeRun.noteOn(64, 100);
+		run(freeRun, 77);
+		LiveState c;
+		chk(freeRun.readLiveState(c), "no live state after the second note");
+
+		double worstRetrig = 0.0, worstFree = 0.0, worstSecond = 0.0, worstLocked = 0.0;
+		for (int k = 0; k < 10; ++k)
+		{
+			worstRetrig = std::fmax(worstRetrig, apart(a.lfoPhase[k], step(retrig, k) * held));
+			worstFree   = std::fmax(worstFree,   apart(b.lfoPhase[k], step(freeRun, k) * (silence + held)));
+			worstSecond = std::fmax(worstSecond,
+			                        apart(c.lfoPhase[k], step(freeRun, k) * (silence + held + 3333 + 77)));
+			worstLocked = std::fmax(worstLocked, apart(c.lfoPhase[k], freeRun.freeLfoPhase(k)));
+		}
+		std::printf("   worst phase error: shared %.2g, retrigger %.2g, free %.2g, "
+		            "second note %.2g, note vs shared %.2g rad\n",
+		            worstShared, worstRetrig, worstFree, worstSecond, worstLocked);
+		chk(worstShared < 1e-9, "the shared LFO phases do not keep time through silence");
+		chk(worstRetrig < 1e-4, "retrigger did not start the LFOs at zero");
+		chk(worstFree < 1e-4, "a free-running note did not join the running phase");
+		chk(worstSecond < 1e-4, "a later free-running note did not join the running phase");
+		chk(worstLocked < 1e-4, "a free-running note drifted off the shared phase");
+
+		// And the two modes really do differ here - the test is not vacuous.
+		double differ = 0.0;
+		for (int k = 0; k < 10; ++k)
+			differ = std::fmax(differ, apart(a.lfoPhase[k], b.lfoPhase[k]));
+		chk(differ > 0.1, "retrigger and free run left the LFOs in the same place");
+	}
+
 	std::printf(fails ? "\n%d CHECK(S) FAILED\n" : "\nall checks passed\n", fails);
 	return fails != 0;
 }

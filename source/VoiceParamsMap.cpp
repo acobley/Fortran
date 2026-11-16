@@ -63,6 +63,9 @@ void buildVoiceParams (const double* normalized, VoiceParams& out)
 	// of the law, and the panel's readout goes through it too.
 	out.portamento = static_cast<float> (portamentoSeconds (internalOf (normalized, kPortamento)));
 
+	// Acted on by Synth at note-on, not by the voice - see VoiceParams.
+	out.harmLfoFreeRun = b (kHarmLfoFreeRun);
+
 	out.shapes.lowPass  = static_cast<int> (internalOf (normalized, kLowPassState));
 	out.shapes.highPass = static_cast<int> (internalOf (normalized, kHighPassState));
 	out.shapes.comb     = static_cast<int> (internalOf (normalized, kCombState));
